@@ -41,5 +41,5 @@ ankurah-storage-sqlite = { git = "https://github.com/ankurah/ankurah", rev = "c8
 # The revision of the Ankurah Commons that holds `Dimension`, from its branch
 # `property-dimension` (ankurah/commons pull request 1). With `records`, because the entities
 # of these models also carry its `Closed`.
-ankurah-commons        = { git = "https://github.com/ankurah/commons", rev = "0c1393a758afaa95cac9f1e47786d0f00032f6e6", features = ["records"] }
+ankurah-commons        = { git = "https://github.com/ankurah/commons", rev = "c06db8ca8e611bf8ed2051e3c28315491430f5b8", features = ["records"] }
 syn                    = { version = "2", features = ["full"] }

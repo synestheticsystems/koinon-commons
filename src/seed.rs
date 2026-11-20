@@ -79,7 +79,7 @@ mod tests {
         policy::DEFAULT_CONTEXT,
         property::Ref,
         proto::EntityState,
-        Context, EntityId, Model, ModelId, PermissiveAgent, View,
+        Context, EntityId, Model, ModelId, PermissiveAgent, PropertyId, View,
     };
     use ankurah_commons::dimension::Dimension;
     use ankurah_storage_sled::SledStorageEngine;
@@ -109,8 +109,9 @@ mod tests {
     }
 
     /// Registration binds a model through the catalog's local resolution before it would
-    /// register anything; every model resolves there to the minted definition it declares, so
-    /// registering it mints nothing.
+    /// register anything; every model resolves there to the minted definition it declares, and
+    /// each of its properties to the id its field declares, so registering it mints nothing and
+    /// nothing binds by name.
     #[tokio::test]
     async fn seeding_a_fresh_node_binds_every_model_to_its_minted_definition() {
         every_model_binds_to_its_minted_definition(sled().await).await;
@@ -123,6 +124,10 @@ mod tests {
         for descriptor in NAMESPACES.iter().flat_map(|namespace| namespace.models).map(|model| model()) {
             let declared = EntityId::from_base64(descriptor.explicit_id.expect("every model declares its minted id")).unwrap();
             assert_eq!(descriptor.bind_local(&node.catalog, epoch).unwrap(), ModelId::EntityId(declared), "{}", descriptor.label);
+            for property in descriptor.properties {
+                let declared = EntityId::from_base64(property.explicit_id.expect("every property declares its minted id")).unwrap();
+                assert_eq!(property.resolved_id(epoch).unwrap(), PropertyId::EntityId(declared), "{}.{}", descriptor.label, property.field);
+            }
         }
     }
 
