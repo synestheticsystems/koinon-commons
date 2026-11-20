@@ -50,7 +50,7 @@ to every server it is signed in to, so that each server holds the same records u
 same ids. A `NodeLink` stays on the node that made it.
 
 A station describes a printer as its computer's print system does: the name of its driver,
-and whether the print system renders a PDF for it. What the printer is loaded with is what
+and the formats of document the print system accepts for it, as MIME types. What the printer is loaded with is what
 a person last said, written whole rather than as a reference, so that it reads the same on
 every server. A width or a height is a `Dimension`, the Ankurah Commons' type.
 

@@ -22,22 +22,22 @@ lww: {
 }
 member: system:model-property
 
-[rsQ8170kpSjA-MV_YoXgdwyeDciTBh9VBOAFGUyu-aI]
-nonce: D4Q5CHQ0ham3k8kkK770dQ-pidKTn-6vIU_ucbt2t7E, timestamp: 2026-11-20T06:51:23.427Z
+[tUouhhdXl2SBfr3rG1wh6cm55yFPq38CvEBta6hyImY]
+nonce: pg-pCiUnJqJsaR7OVaQtgRERe6tdl4hjOSrhhy-XueE, timestamp: 2026-11-20T07:44:38.017Z
 lww: {
-    name: "accepts_pdf"
+    name: "document_formats"
     backend: "lww"
-    value_type: "bool"
+    value_type: "json"
     minted_for: $devices.printer
     target_model: none
 }
 member: system:property
 
-[3bV_urv8mG8DFM8gD30HQHvQraHjY05-aEcP5BoaLrs]
-nonce: oNz99KcfQsQOENkauzecJ4MquiqExeOyvLpwPkx9o7k, timestamp: 2026-11-20T06:51:23.427Z
+[8llprqxfGH2Zu-XeekwRScfNM3ZyWPKO1rZlMkQJtiQ]
+nonce: HKvAHX8SM-3oJcuhFUjhaHR2PTfzKi1lGwhlwCxyvWc, timestamp: 2026-11-20T07:44:38.017Z
 lww: {
     model: $devices.printer
-    property: $accepts_pdf
+    property: $document_formats
     optional: false
 }
 member: system:model-property

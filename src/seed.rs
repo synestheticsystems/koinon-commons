@@ -174,7 +174,10 @@ mod tests {
             name: name.to_owned(),
         };
         let (printer_device, scale_device) = (device("Zebra_GK420d", "Pack bench 3 labels"), device("SN 4411", "Pack bench 3 scale"));
-        let printer = Printer { driver: "Zebra ZPL Label Printer".to_owned(), accepts_pdf: false };
+        let printer = Printer {
+            driver: "Zebra ZPL Label Printer".to_owned(),
+            document_formats: MimeTypes::new(vec!["application/vnd.cups-raw".to_owned(), "application/pdf".to_owned()]).unwrap(),
+        };
         let media = Media {
             name: "4x6".to_owned(),
             width: Dimension::from_millimeters(101.6).unwrap(),
