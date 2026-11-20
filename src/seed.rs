@@ -66,7 +66,12 @@ fn kept_mint() -> Result<Vec<Attested<Event>>, SeedError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{devices::*, namespaces::NAMESPACES, nodes::*};
+    use crate::{
+        devices::*,
+        mime_type::{MimeType, MimeTypes},
+        namespaces::NAMESPACES,
+        nodes::*,
+    };
     use ankurah::{
         core::schema::registration::RegistrationError,
         entity::LocalTrxEntity,
@@ -176,7 +181,11 @@ mod tests {
         let (printer_device, scale_device) = (device("Zebra_GK420d", "Pack bench 3 labels"), device("SN 4411", "Pack bench 3 scale"));
         let printer = Printer {
             driver: "Zebra ZPL Label Printer".to_owned(),
-            document_formats: MimeTypes::new(vec!["application/vnd.cups-raw".to_owned(), "application/pdf".to_owned()]).unwrap(),
+            document_formats: MimeTypes::new(vec![
+                MimeType::new("application/vnd.cups-raw").unwrap(),
+                MimeType::new("application/pdf").unwrap(),
+            ])
+            .unwrap(),
         };
         let media = Media {
             name: "4x6".to_owned(),

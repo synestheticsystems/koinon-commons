@@ -15,13 +15,16 @@ use serde::{Deserialize, Serialize};
 pub struct Device {
     /// The station whose computer the device is on, which carries out the jobs for it. It
     /// never changes: a device moved to another computer is added there as a new record.
+    #[property(id = "oonHtZVf7XkOnRruznuVrlnOlYVg0oRRgopPdDFYTEM")]
     pub station: Ref<Station>,
     /// What that computer's operating system calls the device, by which the station
     /// finds it again: a print queue's name, or what tells a scale from the others on that
     /// computer, such as its serial number.
     #[active_type(LWW)]
+    #[property(id = "F376lqdzGksKqfAKSi4N6yFvX5dyp1GRC1vyhpfSGXU")]
     pub system_name: String,
     /// What a person called it, such as "Pack bench 3 labels".
     #[active_type(LWW)]
+    #[property(id = "jkm85rInO7Xjr4OOVI9oYb2vgey49mlm7k3jFJFVVq8")]
     pub name: String,
 }

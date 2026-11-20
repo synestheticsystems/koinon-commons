@@ -16,13 +16,16 @@ pub struct NodeLink {
     /// under another key.
     // OPEN: its text form follows Ankurah's node keys, as the station's does.
     #[active_type(LWW)]
+    #[property(id = "8srbsqiN47-75IKxXXATSCOmTeWyrLfAk2-H_KKpdPk")]
     pub public_key: String,
     /// Where the other node is reached, as the person who signed in gave it. It may change,
     /// as when a server moves.
     // OPEN: its form follows how a node signs in, such as the address of a server's page.
     #[active_type(LWW)]
+    #[property(id = "W-KWXW-m24siasyQUVtNQ4mjKGut8tqb4rjQtWfpp0U")]
     pub address: String,
     /// What a person calls the other node.
     #[active_type(LWW)]
+    #[property(id = "jAR5hLb2VyxX6iih6qbnoJyxTCj4lm0EVMkQgPTgLmw")]
     pub name: String,
 }

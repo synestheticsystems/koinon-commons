@@ -13,10 +13,13 @@ use serde::{Deserialize, Serialize};
 pub struct Media {
     /// What people call the stock, such as "4x6".
     #[active_type(LWW)]
+    #[property(id = "9dnXlG1Q2K1x4H1mYICkq2UrJmB8mp2TIKVvk1OxwN4")]
     pub name: String,
     /// Greater than zero.
+    #[property(id = "lqS3yX7vFCJc_N_HmhKCg8I9MB_ozt96ZO9ItJif_f8")]
     pub width: Dimension,
     /// Greater than zero. None for continuous stock, which has no fixed length.
     #[active_type(LWW)]
+    #[property(id = "wZeCZXsndsBshsjjYdOC0MOXA4qiUWyxWJAz7u7h7rg")]
     pub height: Option<Dimension>,
 }

@@ -16,8 +16,10 @@ pub struct Station {
     /// It never changes: a node set up anew, under a new key, is another station.
     // OPEN: its text form follows Ankurah's node keys, which have not landed.
     #[active_type(LWW)]
+    #[property(id = "YEir7jUuQgbsYGJQY1cXRWdIFJMf3rgvtaotfuuraoE")]
     pub public_key: String,
     /// What a person called it, such as "Pack bench 3".
     #[active_type(LWW)]
+    #[property(id = "sIfYWZ7pLs7btNnecBf5brIZ0y_hkp1sWTaOWDcmXbU")]
     pub name: String,
 }

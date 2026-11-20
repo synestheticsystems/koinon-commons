@@ -17,14 +17,16 @@ model's file the `.akev` file of its minted definitions:
     src/devices/         printers and scales, the stock a printer is loaded with, and the
                          station that offers them
     src/nodes/           what a node keeps about the other nodes it works with
+    src/mime_type.rs     MIME types, by which a document names its format and a printer the
+                         formats it takes
     src/namespaces.rs    the namespaces and their models
     src/seed.rs          seeding a node with the kept mint, which it compiles in
     mint/                the tool that mints the definitions and checks a mint, for this
                          crate and for any other crate of Koinon models
 
 The Rust declarations are the source: each `#[derive(Model)]` struct states a model, its
-properties, how each is stored and which are optional, and names the id the kept mint gives
-the model. Every model is marked `no_ffi`, as the Ankurah Commons' are.
+properties, how each is stored and which are optional, and names the ids the kept mint gives
+the model and each of its properties. Every model is marked `no_ffi`, as the Ankurah Commons' are.
 
 A comment that starts with `OPEN:` marks a question still to settle. Settling one that changes
 a model changes its definitions, which then need minting again.
@@ -72,15 +74,17 @@ its events once and keeping what was minted, as the Ankurah Commons does for its
     cargo run -p koinon-mint -- verify [--src <dir>]
 
 `mint` writes the creation event of every definition each model's declaration needs, as a
-block of the `.akev` file beside the struct, and gives the struct its model's id,
-`#[model(id = "...")]`. An event the kept mint holds with the same operations keeps its
+block of the `.akev` file beside the struct. It gives the struct its model's id,
+`#[model(id = "...")]`, and every field that declares a property that property's id,
+`#[property(id = "...")]`, so that a node binds a model and each of its properties by their
+ids, never by label or name. An event the kept mint holds with the same operations keeps its
 nonce and timestamp, so minting again changes nothing unless a declaration changed, and then
 draws new events only for the definitions whose operations changed. A model keeps its id
 unless its label or the name of its struct changes; a changed property gives that property
-and its link new ids. `verify` checks that each file states
-exactly what its model's declaration needs and that each struct declares its file's id.
-Both work on the namespaces' parent directory, `src/` unless `--src` names a copy for a
-trial run.
+and its link new ids. `verify` checks that each file states exactly what its model's
+declaration needs and that each struct declares its file's ids, its model's and each
+property's. Both work on the namespaces' parent directory, `src/` unless `--src` names a copy
+for a trial run.
 
 A mint that is kept is committed to this repository, and that text is then the authority.
 Each creation event names no system root and no author, so it is the same entity on every
@@ -109,8 +113,8 @@ the Koinon Commons:
     koinon_commons::seed(&node).await?;
 
 Seed the node before it first binds any of these models: registering a model binds it, and
-so do a fetch, a query, a get and a create of it. Each model declares its minted id and binds
-by that id, never by its label. On a node not yet seeded it fails with Ankurah's
+so do a fetch, a query, a get and a create of it. Each model and each of its properties
+declare their minted ids and bind by them, never by label or name. On a node not yet seeded it fails with Ankurah's
 `RegistrationError::ExplicitModelIdNotFound` rather than minting definitions of its own,
 which no other node would share.
 

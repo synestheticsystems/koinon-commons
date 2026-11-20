@@ -15,13 +15,15 @@
 //! operations are exactly the same, and otherwise draws a fresh nonce and the current time, so
 //! that minting a kept mint again changes nothing unless a declaration changed. It writes the
 //! events into `<model>.akev` beside the `<model>.rs` that declares the model, and gives the
-//! struct its model's id, `#[model(id = "...")]`.
+//! struct its model's id, `#[model(id = "...")]`, and every field that declares a property that
+//! property's id, `#[property(id = "...")]`. A node then binds the model and each of its
+//! properties by their ids, never by label or name.
 //!
 //! `verify` checks that every listed model has its file beside its struct and no other `.akev`
 //! file is there, that every file reads, that each states exactly the events its model's
-//! declaration needs, and that the struct declares the id the file states. It does not show who
-//! made the events, since nothing is signed: what vouches for a kept mint is the repository it is
-//! committed to.
+//! declaration needs, and that the struct declares the ids the file states, its model's and each
+//! property's. It does not show who made the events, since nothing is signed: what vouches for a
+//! kept mint is the repository it is committed to.
 
 #[cfg(test)]
 mod copies;
