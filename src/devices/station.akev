@@ -1,0 +1,43 @@
+[x7iVWAhMXd77hZaS-CRE598fanpmtDia7M_pQI-fKpU]
+nonce: u4xOrAIxEwsOUVpGJTlLaaB02VfiMaGRxb8W5nCaKuk, timestamp: 2026-11-20T06:51:23.427Z
+lww: { label: "devices.station", name: "Station" }, member: system:model
+
+[YEir7jUuQgbsYGJQY1cXRWdIFJMf3rgvtaotfuuraoE]
+nonce: k-Kbsab5UHUSoHw8z3o03uUhOqLVrp0mvEC4qXIBJwU, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "public_key"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.station
+    target_model: none
+}
+member: system:property
+
+[DB5PD3FuGIDgCuS7KanVrddY7oXga2S3_jHKjQgpsEo]
+nonce: PJ-3Wi04pivwVJlFS0aZ16L8HhFslApJ28GCMWN4k4Y, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.station
+    property: $public_key
+    optional: false
+}
+member: system:model-property
+
+[sIfYWZ7pLs7btNnecBf5brIZ0y_hkp1sWTaOWDcmXbU]
+nonce: rHB-iEFC4RtJx6BNX-1Wt8qq-07R0lMpZMqjq9TNl9M, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.station
+    target_model: none
+}
+member: system:property
+
+[ksqaGQY2qwUL1DvLUSuwAoFOgv9bWG6zzDJ8A0TaLXE]
+nonce: vxBBntrTqij5ip8MMAikfOiINmPEAPbRoDS4xqpvBNE, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.station
+    property: $name
+    optional: false
+}
+member: system:model-property

@@ -1,0 +1,63 @@
+[ULVl4nlCm9s4wkRAosvq9iDNwy5ePclWoGHd_c60z-g]
+nonce: aB9pworApEXxBqNk2-Lku_R33LPZt-r_Y-MXDT6dXWo, timestamp: 2026-11-20T06:51:23.426Z
+lww: { label: "devices.device", name: "Device" }, member: system:model
+
+[oonHtZVf7XkOnRruznuVrlnOlYVg0oRRgopPdDFYTEM]
+nonce: vvIgBCz7Gl4qHxb_1AkmTBMJsyJvQNcRStt9qEzPRxo, timestamp: 2026-11-20T06:51:23.426Z
+lww: {
+    name: "station"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $devices.device
+    target_model: none
+}
+member: system:property
+
+[UWLLMf4Eia3RylwsIDja9E6Ksry9ufs5TLjLGd5jmQY]
+nonce: 11b7m-jW5SfvIzO-hggEcllhqPel58jxxHDfq7MvEFU, timestamp: 2026-11-20T06:51:23.426Z
+lww: {
+    model: $devices.device
+    property: $station
+    optional: false
+}
+member: system:model-property
+
+[F376lqdzGksKqfAKSi4N6yFvX5dyp1GRC1vyhpfSGXU]
+nonce: 99nPBIZSOk5HSYqUI5BXrUoWsNuaOIvgvUZjun_ox5s, timestamp: 2026-11-20T06:51:23.426Z
+lww: {
+    name: "system_name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.device
+    target_model: none
+}
+member: system:property
+
+[kbt7HdcgR8PtlS0CwM2qUzKhPK6ynuRgEIF2oUIsF5A]
+nonce: Vkz0tXKqyemNzICfUtjQWmGmdhFlCvbIMry5uaoF5qw, timestamp: 2026-11-20T06:51:23.426Z
+lww: {
+    model: $devices.device
+    property: $system_name
+    optional: false
+}
+member: system:model-property
+
+[jkm85rInO7Xjr4OOVI9oYb2vgey49mlm7k3jFJFVVq8]
+nonce: 1DNiuNSR_xBIxdGYUxthIt5ES3YLdBOL3wLosAreo3o, timestamp: 2026-11-20T06:51:23.426Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.device
+    target_model: none
+}
+member: system:property
+
+[h8wFQxf18eX-9x8Rl8rC5lLWTtwtVB8tuv7-2o35PyI]
+nonce: 76AGmFw2-51KrVB6mNe-IUt5s6PVGqtBHObD1Y37Gag, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.device
+    property: $name
+    optional: false
+}
+member: system:model-property

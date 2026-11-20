@@ -1,0 +1,63 @@
+[EJ_qLii0tXiKK-WbYNpqjl_vvCTVdMMrX8bJ7DyWzm0]
+nonce: JRdNpyWZWbZ28a7rLKa4dUS9pwodERPNgtTzp0c5Oc0, timestamp: 2026-11-20T06:51:23.427Z
+lww: { label: "devices.media", name: "Media" }, member: system:model
+
+[9dnXlG1Q2K1x4H1mYICkq2UrJmB8mp2TIKVvk1OxwN4]
+nonce: O7CVXzvkGBlPo1ocP0qsnBTZazufgHhvdxtAe9wc24o, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.media
+    target_model: none
+}
+member: system:property
+
+[8-mSAgck-WZDNpfY6YM-xmWSa6VxknzpL-Rys-4vSEI]
+nonce: yh-PxSbGYX5tYC53IiMmj61utZgy0Ti3Ti9qfy_OmjY, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.media
+    property: $name
+    optional: false
+}
+member: system:model-property
+
+[lqS3yX7vFCJc_N_HmhKCg8I9MB_ozt96ZO9ItJif_f8]
+nonce: FIFoLt_heXgw46x9CV6JdxElV3oReR6qT96t1p0y45E, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "width"
+    backend: "lww"
+    value_type: "f64"
+    minted_for: $devices.media
+    target_model: none
+}
+member: system:property
+
+[13QTZnhOBiyMrctoFR9LTiFCO-5l14z-OzspgZB9iXs]
+nonce: e6VbHwAx0rL6-5sf8K0ggqqJFJlPX2R_f_WHXi3-5QA, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.media
+    property: $width
+    optional: false
+}
+member: system:model-property
+
+[wZeCZXsndsBshsjjYdOC0MOXA4qiUWyxWJAz7u7h7rg]
+nonce: h-tcfQrs1MNuSS6Cj4ZbudoxgaiTOa0PpJnouL11xww, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "height"
+    backend: "lww"
+    value_type: "f64"
+    minted_for: $devices.media
+    target_model: none
+}
+member: system:property
+
+[cVBktlh1x9RY8OU5PLStAU3Gz76fXkLFx4uFSH8KMnM]
+nonce: Zsqv-vWV8ZxmMgqcYLqRYlSJFTSm70jRq5raG8-5V3U, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.media
+    property: $height
+    optional: true
+}
+member: system:model-property

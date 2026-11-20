@@ -1,0 +1,45 @@
+[package]
+name    = "koinon-commons"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+# Not yet: crates.io refuses git dependencies, and this builds against an unreleased
+# revision of Ankurah.
+publish = false
+
+[dependencies]
+ankurah         = { workspace = true }
+ankurah-commons = { workspace = true }
+serde           = { version = "1", features = ["derive"] }
+thiserror       = "2"
+
+[dev-dependencies]
+# Durable nodes to seed, on the two storage engines the Ankurah Commons' tests use.
+ankurah-storage-sled   = { workspace = true }
+ankurah-storage-sqlite = { workspace = true }
+# A record as created and as fetched, compared whole.
+serde_json           = "1"
+# The guard on the list of models reads the namespaces' sources.
+syn                  = { workspace = true }
+tokio                = { version = "1", features = ["macros", "rt"] }
+
+[workspace]
+resolver = "2"
+members  = ["mint"]
+
+[workspace.package]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# The revision of Ankurah's main that the Ankurah Commons pins. An application that uses
+# this crate pins the same revision: crates from two revisions would not share Ankurah's
+# types.
+ankurah                = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee", features = ["derive"] }
+ankurah-storage-sled   = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee" }
+ankurah-storage-sqlite = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee" }
+# The revision of the Ankurah Commons that holds `Dimension`, from its branch
+# `property-dimension` (ankurah/commons pull request 1). With `records`, because the entities
+# of these models also carry its `Closed`.
+ankurah-commons        = { git = "https://github.com/ankurah/commons", rev = "0c1393a758afaa95cac9f1e47786d0f00032f6e6", features = ["records"] }
+syn                    = { version = "2", features = ["full"] }

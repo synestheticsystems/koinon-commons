@@ -1,0 +1,43 @@
+[tdb_BWOhavVLjE6j3fg5AxGEvVYxVpy7vSx3IdvCxzE]
+nonce: qe0a82ft8c4GmGfQxaiJebvaielk4jknnUAHbNlZ6Ak, timestamp: 2026-11-20T06:51:23.427Z
+lww: { label: "devices.printer", name: "Printer" }, member: system:model
+
+[VNc_b0EhyMd-LXZQbmvgYe9j1WUG6SS3qvdd2vknhvc]
+nonce: MnlGup6ljXs8LqsF1IJ-tXbgfKDez1w9fPPfdPkhJ7k, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "driver"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $devices.printer
+    target_model: none
+}
+member: system:property
+
+[lgxnZEIVWEAZifq9V9zub8KqF9Ask7psdxhv1dbtjJ8]
+nonce: WlylHTNrEPKSRD0CJqG3sKeb7VWCpe-MTllBIRbf4tk, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.printer
+    property: $driver
+    optional: false
+}
+member: system:model-property
+
+[rsQ8170kpSjA-MV_YoXgdwyeDciTBh9VBOAFGUyu-aI]
+nonce: D4Q5CHQ0ham3k8kkK770dQ-pidKTn-6vIU_ucbt2t7E, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    name: "accepts_pdf"
+    backend: "lww"
+    value_type: "bool"
+    minted_for: $devices.printer
+    target_model: none
+}
+member: system:property
+
+[3bV_urv8mG8DFM8gD30HQHvQraHjY05-aEcP5BoaLrs]
+nonce: oNz99KcfQsQOENkauzecJ4MquiqExeOyvLpwPkx9o7k, timestamp: 2026-11-20T06:51:23.427Z
+lww: {
+    model: $devices.printer
+    property: $accepts_pdf
+    optional: false
+}
+member: system:model-property

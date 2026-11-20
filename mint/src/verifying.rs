@@ -1,0 +1,109 @@
+//! Checks the `.akev` files a mint keeps in a crate's sources, stopping at the first that
+//! fails:
+//!
+//! - every listed model has its file beside its struct, and no other `.akev` file is there;
+//! - the files read: every block builds an event, the genesis of the entity its header names;
+//! - each file states exactly the events its model's declaration needs, and the struct declares
+//!   the id the file states for its model.
+//!
+//! It does not check who minted the events, since nothing is signed.
+
+use std::path::{Path, PathBuf};
+
+use ankurah::EntityId;
+use ankurah_commons::{akev::ReadError, namespaces::Namespace, registration::Definition};
+use thiserror::Error;
+
+use crate::{
+    minting::{self, KeptError, MintError},
+    placement::{self, PlaceError, EXTENSION},
+};
+
+#[cfg(test)]
+mod tests;
+
+/// The first file that failed, and why.
+#[derive(Debug, Error)]
+#[error("{}: {failure}", path.display())]
+pub struct VerifyError {
+    pub path: PathBuf,
+    pub failure: Failure,
+}
+
+/// Why a file fails verification.
+#[derive(Debug, Error)]
+pub enum Failure {
+    #[error("is missing")]
+    Missing,
+    #[error("cannot be placed: {0}")]
+    Unplaced(PlaceError),
+    #[error("is a minted file of nothing listed")]
+    Stray,
+    #[error("does not read, at line {}: {}", .0.line, .0.problem)]
+    Unread(Box<ReadError>),
+    #[error("cannot be minted: {0}")]
+    Unminted(Box<MintError>),
+    #[error("states no event of {} as the declarations need it", described(.0))]
+    NotAsDeclared(Definition),
+    #[error("states the genesis of {0}, which the declarations do not need")]
+    Unneeded(EntityId),
+    #[error("states the model's id as {stated}, and its struct declares {declared:?}")]
+    OtherId { stated: EntityId, declared: Option<&'static str> },
+}
+
+/// What `verify` checked.
+#[derive(Debug)]
+pub struct Verified {
+    pub files: usize,
+    pub events: usize,
+}
+
+/// Checks the minted files of `namespaces` under `src`, the namespaces' parent directory.
+pub fn verify(src: &Path, namespaces: &[Namespace]) -> Result<Verified, VerifyError> {
+    let mut listed = Vec::new();
+    for namespace in namespaces {
+        let directory = src.join(namespace.name);
+        if namespace.edge_kinds.is_some() {
+            return Err(VerifyError { path: directory, failure: Failure::Unminted(Box::new(MintError::EdgeKinds(namespace.name))) });
+        }
+        for model in namespace.models {
+            let source = placement::model_source(&directory, model().name)
+                .map_err(|failure| VerifyError { path: directory.clone(), failure: Failure::Unplaced(failure) })?;
+            listed.push(source.with_extension(EXTENSION));
+        }
+    }
+    let files =
+        placement::minted_files(src).map_err(|failure| VerifyError { path: src.to_owned(), failure: Failure::Unplaced(failure) })?;
+    if let Some(missing) = listed.iter().find(|path| !files.contains(path)) {
+        return Err(VerifyError { path: missing.clone(), failure: Failure::Missing });
+    }
+    if let Some(stray) = files.into_iter().find(|file| !listed.contains(file)) {
+        return Err(VerifyError { path: stray, failure: Failure::Stray });
+    }
+    let minted = minting::mint(src, namespaces).map_err(|error| match error {
+        MintError::Kept(KeptError::Unread(error)) => VerifyError { path: error.path.clone(), failure: Failure::Unread(Box::new(error)) },
+        other => VerifyError { path: src.to_owned(), failure: Failure::Unminted(Box::new(other)) },
+    })?;
+    for file in &minted {
+        let failed = |failure| Err(VerifyError { path: file.path.clone(), failure });
+        if let Some(&needed) = file.drawn.first() {
+            return failed(Failure::NotAsDeclared(needed));
+        }
+        if let Some(&unneeded) = file.unneeded.first() {
+            return failed(Failure::Unneeded(unneeded));
+        }
+        if file.descriptor.explicit_id != Some(file.model.to_base64().as_str()) {
+            return failed(Failure::OtherId { stated: file.model, declared: file.descriptor.explicit_id });
+        }
+    }
+    Ok(Verified { files: minted.len(), events: minted.iter().map(|file| file.geneses.len()).sum() })
+}
+
+/// The entity `definition` names, in words.
+fn described(definition: &Definition) -> String {
+    match definition {
+        Definition::Model => "the model's definition".to_owned(),
+        Definition::Property(name) => format!("the definition of the property `{name}`"),
+        Definition::Link(name) => format!("the link that gives the model the property `{name}`"),
+    }
+}

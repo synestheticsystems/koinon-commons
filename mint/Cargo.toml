@@ -1,0 +1,24 @@
+[package]
+name    = "koinon-mint"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+# A tool for Koinon's crates of models: it writes a crate's kept mint into its sources.
+publish = false
+
+[dependencies]
+ankurah         = { workspace = true }
+ankurah-commons = { workspace = true }
+# The tool's own binary mints the Koinon Commons, and its tests mint copies of it.
+koinon-commons  = { path = ".." }
+
+clap        = { version = "4", features = ["derive"] }
+# Where in a struct's source its model's id is declared.
+proc-macro2 = { version = "1", features = ["span-locations"] }
+# The nonces of entities a kept mint does not hold.
+rand        = "0.9"
+syn         = { workspace = true }
+thiserror   = "2"
+
+[dev-dependencies]
+tempfile = "3"
