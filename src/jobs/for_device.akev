@@ -1,0 +1,23 @@
+[_P11X5Urc4p0vCN3OamJqR4HKtyCrg-W3MXcdpXr7TA]
+nonce: baKGeOaLYyWgSsFVzICj8yCDWOQmmXO47LyQMxwRNPY, timestamp: 2026-11-21T01:07:31.221Z
+lww: { label: "jobs.for_device", name: "ForDevice" }, member: system:model
+
+[JcVqbGhsU9ij-4pa2EoIzQi3OZPQTWL2TkXIL8VRZ90]
+nonce: F01q_nms3JmAv4Aoy-QnxiX6SUf1FGQpz9mW20HHU2U, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    name: "device"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $jobs.for_device
+    target_model: none
+}
+member: system:property
+
+[d2_NYXNLTF3q-2UnAIzbheneB9pNe-w-ZYiELoq8Rfs]
+nonce: OCDi4eDVmkNUBikAR5_risyjxt84vFBotG4sLaUOOOI, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    model: $jobs.for_device
+    property: $device
+    optional: false
+}
+member: system:model-property

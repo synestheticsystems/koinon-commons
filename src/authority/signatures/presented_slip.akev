@@ -1,0 +1,63 @@
+[yk-eP-hkf0aNCxmxLmpzYtQoJytOrkndpPNRSzts12g]
+nonce: EKFfVel0RPrkXUAWru_lnfmhbPkCuRqdF_UP4SwwdB8, timestamp: 2026-11-21T01:07:31.216Z
+lww: { label: "authority.presented_slip", name: "PresentedSlip" }, member: system:model
+
+[YaEQDFhDGVtxCSB47DgKQpEc0jJCQYQIPtkOirE_73c]
+nonce: Cel2Aa0Tyw7acP9FeIzKMeCWMkHE4QC6qhOc6Nm3YU4, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    name: "content"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.presented_slip
+    target_model: none
+}
+member: system:property
+
+[UP4qcAnuxfEewdIhBQGC40cjzenVxd1zll7cL8PpADM]
+nonce: MJWv5uo-FqLIrjTYwkEJy_oRWBHpjhu-hL4HessYlnU, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    model: $authority.presented_slip
+    property: $content
+    optional: false
+}
+member: system:model-property
+
+[1J8GPFQ9G0l9wEBhZkRsRZF0AC22wnaD1GsoRQxyTlw]
+nonce: Z-qRZvBLCivkCvd6kkUmk1oaWM_HDm1vG1TpiNwqy58, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    name: "signer"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.presented_slip
+    target_model: none
+}
+member: system:property
+
+[yrlQhDjtEl4xjhkMY99K_QmLi10h0R8Cj8-TrCWhGfo]
+nonce: MZMRCbEuT2s9SAmG48uL9ifNLbd-4JMu3k8XaLn2i-I, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    model: $authority.presented_slip
+    property: $signer
+    optional: false
+}
+member: system:model-property
+
+[D0-9RrU0VMEvabn-_SqBMSVZNM9FkAhi8jaQN-a1p7E]
+nonce: Yif3e_gH_qNnQVM7PGJlrHh9hs5xewkdHEkyil5RInI, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    name: "signature"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.presented_slip
+    target_model: none
+}
+member: system:property
+
+[-HwfEmuOFtSfjQe6RfqEBHprap84dGMIJn9UU78NNNo]
+nonce: oVAJcOKwVtbsDT6LmKy2IhSewkMMLi7V1hVLa9_oXFU, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    model: $authority.presented_slip
+    property: $signature
+    optional: false
+}
+member: system:model-property

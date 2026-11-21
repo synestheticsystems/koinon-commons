@@ -1,0 +1,43 @@
+[L3fpHa-JGkQ0wIdz1gmk7EM7jUXc392omNcylGZqkpI]
+nonce: umdM4b1w9D3FrAdqZuZpwK3bRWN9G9hOy6Fga6jtfK0, timestamp: 2026-11-21T01:07:31.226Z
+lww: { label: "replies.refusal", name: "Refusal" }, member: system:model
+
+[1sjAb304gYogFxsCb4A7OfHqW1dJVOICvjzX8UEPxxI]
+nonce: cIyW1EoMlMLS-REkAtUCNP6Tnm2HFzn0xUrzQRkT1JI, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    name: "code"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $replies.refusal
+    target_model: none
+}
+member: system:property
+
+[vqnQLUaETB3iyOvOyaRv99GVgbFRM0alsYr5aGTssdA]
+nonce: OzrgcmdC-FXikkLrDXnflG-gooSmGzOiwmcwrKuibro, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    model: $replies.refusal
+    property: $code
+    optional: false
+}
+member: system:model-property
+
+[HGf6j32RDAz4cAGIXvpy9n2nAHMtcuM27QgLURf6BpE]
+nonce: nf0lVv3WXiVsdVOvI9n0CbnKhK0yDLr7d8QDimdp_Uc, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    name: "message"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $replies.refusal
+    target_model: none
+}
+member: system:property
+
+[ovXtoA196A-BxxkMbIDVpXKrfTUGyjen2iDnuthr_xM]
+nonce: xZ8Zd5LRP-s1Hm_y_iGWBqgXL8FD9kbW2YUYE0iMTJs, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    model: $replies.refusal
+    property: $message
+    optional: false
+}
+member: system:model-property

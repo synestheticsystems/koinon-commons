@@ -1,0 +1,43 @@
+[MoUpS9rhxNWBQV2TreJntKFbtesJPb2P118tZRRL_DE]
+nonce: lJhRfiacAKTPSxPgnAvhwCa2126Olcgwn0Sn5BEjnr0, timestamp: 2026-11-21T01:07:31.221Z
+lww: { label: "jobs.job_label", name: "JobLabel" }, member: system:model
+
+[Gl_2LLylSjpIRLA1AQUvTteZ4yDHSnr0iFEJJ4PA9pY]
+nonce: ZzTorG_8qYJvEHo2Zn7UEIC1JCcH5OwR-wL-OlRrBH0, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.job_label
+    target_model: none
+}
+member: system:property
+
+[EzeDHKbCc4qvAb9zLfgJrwk1whiK3-6sKw84sBSSf-M]
+nonce: uHPThofzkq4jbxAdAxX7WQHr7_GQjQGMnieCIUvd-Nk, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    model: $jobs.job_label
+    property: $name
+    optional: false
+}
+member: system:model-property
+
+[x3Wn_d3qGuDnWFrUkjQSlsNMHo0QhRdiM9U70a24d1o]
+nonce: jDAdQe3TbLTcZI1mWet9RZWxKrZ5H7RzPNn_Wo7iUvg, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    name: "asked_by"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.job_label
+    target_model: none
+}
+member: system:property
+
+[Nm-5pnVxBvolo7C0mc17GfChkWoTnI_fWND2Fpgc-DM]
+nonce: uzf4uHS4V6_dqaIDWw1hjAsYhKCrXsZeb970H-mOaSg, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    model: $jobs.job_label
+    property: $asked_by
+    optional: true
+}
+member: system:model-property

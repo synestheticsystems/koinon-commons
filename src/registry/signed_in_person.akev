@@ -1,0 +1,43 @@
+[pnldNpll2AomAhSTRpQAVKtLmFl7HL6xUXgeH_mdXeo]
+nonce: 4Bz7NxhnctlZcuyseOefxNZlYRp1QIZ3HIhBItaQY9k, timestamp: 2026-11-21T01:07:31.225Z
+lww: { label: "registry.signed_in_person", name: "SignedInPerson" }, member: system:model
+
+[i_6psTpvLMUVdI2r9oOZwwHh-r4qCs1A2Le-XoSEk_Y]
+nonce: VlFksUj_SX9zQzUFf4WiF0I_1EPRlM8xvXXIsxJITtY, timestamp: 2026-11-21T01:07:31.225Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.signed_in_person
+    target_model: none
+}
+member: system:property
+
+[skz3Kd0ooKRQOrl9HE7MsmnhujiFxZk2rBnyrVjvJr0]
+nonce: bFMm3svo64kJqWHnbwZO4h2iDkXk_NWqhYxmRScnWtY, timestamp: 2026-11-21T01:07:31.225Z
+lww: {
+    model: $registry.signed_in_person
+    property: $name
+    optional: true
+}
+member: system:model-property
+
+[Ymr6H0veuUiN6UrTdnslYtIUpV0m7GXuiSy_ikOs-h0]
+nonce: bcVqnTMiA1hHCWA6Ug29z5p1a0ZeaLsuzpwLfbtxXPc, timestamp: 2026-11-21T01:07:31.225Z
+lww: {
+    name: "email"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.signed_in_person
+    target_model: none
+}
+member: system:property
+
+[KxrjRMNSV8qTUty6F2psm3-3_mAqf84fdbknxiTyc9k]
+nonce: k9C5sFzKwPWSUs4KAr18cUsG-P9qNaY76oSYeHI_0SU, timestamp: 2026-11-21T01:07:31.225Z
+lww: {
+    model: $registry.signed_in_person
+    property: $email
+    optional: true
+}
+member: system:model-property

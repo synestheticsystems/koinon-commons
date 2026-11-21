@@ -1,0 +1,63 @@
+[DJ4LjLVa0nGR2nuLumsOLAiSUGco6AF5bXvuoBlKFDQ]
+nonce: kMbiLvHj4_CJKjDpYg7i-1sbKYheun0vOc5QfIPd2PY, timestamp: 2026-11-21T01:07:31.217Z
+lww: { label: "authority.signed_retirement", name: "SignedRetirement" }, member: system:model
+
+[klDF8JI06zWvHbrWS3KxVGxflkpKkhnVoc1SZiNWRHM]
+nonce: RhHZQkw0AHDPFFVccIKdkJf0qkbSC2yQ3hPDlhJrnRg, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    name: "content"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.signed_retirement
+    target_model: none
+}
+member: system:property
+
+[xedZUV1mr0dxhF5ezhdwZBmr2dU5EZ3AspU2_zbAHxs]
+nonce: xzbkpQCGW-ySz_uaISSgiu45bzq1xAjAQ7np0UVld3Y, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    model: $authority.signed_retirement
+    property: $content
+    optional: false
+}
+member: system:model-property
+
+[Oi9wcjPKKbRhnc_G7hKZcwc3ZRpSzsWg0MLDi5X8OfM]
+nonce: dnlZU-4vH4F5XEPO7skHTK4CT6I5yCz4YW0l1I9QGIw, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    name: "signer"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.signed_retirement
+    target_model: none
+}
+member: system:property
+
+[msvEcHJwCsQ0yv6gTz9iKW5x18zacafs1uL70KUe6ZA]
+nonce: HJ_DU7Qkm9uQc2NIrH_9KiT5PTYPiRByvV-KW2EXii4, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    model: $authority.signed_retirement
+    property: $signer
+    optional: false
+}
+member: system:model-property
+
+[TPmmksar6Oex0-FUOIcDQU9dxQSInZeLLrFe8rV213g]
+nonce: 3TjUIGSLkxy55DXRu_RUs8HLFbenslwiLIRMz1Qjma0, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    name: "signature"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.signed_retirement
+    target_model: none
+}
+member: system:property
+
+[Wq1ZAcVnSD3TVKssTJTt7Gdn0J1EnEwX-FYvYzsiTks]
+nonce: qb5JNRMJi1n3fwGtHWZ9-fwgD2DRardB6FnVYxIAiTM, timestamp: 2026-11-21T01:07:31.217Z
+lww: {
+    model: $authority.signed_retirement
+    property: $signature
+    optional: false
+}
+member: system:model-property

@@ -1,0 +1,23 @@
+[41_X-OqloSwZ1O0EaXbFmy7owalg4EvwnJld2tIUbT0]
+nonce: vALikHGQhRLS42vLqbORFBcKEQ56u3EwlzHzhOokgts, timestamp: 2026-11-21T01:07:31.226Z
+lww: { label: "replies.not_understood", name: "NotUnderstood" }, member: system:model
+
+[EmwMiA69orwdbYltfP0vGTsLNtft7AoactXdFozmkRA]
+nonce: ERxMgcNsQ6AxB8Zvfy3t0phVN4t-Ex-suanwcmWA2fg, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    name: "components"
+    backend: "lww"
+    value_type: "json"
+    minted_for: $replies.not_understood
+    target_model: none
+}
+member: system:property
+
+[5parl3WQBcwAGwarU2Z1FjDC0FtNPQ1YsqM-284KPBU]
+nonce: wNJ75gBUhCFyEwRsuClgcEqdLrYtiPBwiSED37s8Dv8, timestamp: 2026-11-21T01:07:31.226Z
+lww: {
+    model: $replies.not_understood
+    property: $components
+    optional: false
+}
+member: system:model-property

@@ -1,0 +1,25 @@
+use ankurah::Model;
+use ankurah_commons::property::Timestamp;
+
+use crate::codec::Minted;
+
+/// A registry's word that every permission slip of an application, issued before a moment, is
+/// void, as when an API key that asked for some was revoked, or the membership of a person who did
+/// was closed: how a slip ends before its expiry without any station waiting on a registry. The
+/// application is the `ForApplication` beside it. It has its authority from the connection it
+/// comes on: a station takes it only from the registry the application came through, keeps the
+/// latest such moment for each application, and from then on honours none of its slips issued
+/// before it. The registry voids the good slips with the bad, and their parties ask for new ones.
+/// A sender lists it as a component a receiver must understand, since a station that dropped it
+/// would go on honouring void slips.
+// OPEN: voiding reaches beyond a registry's part of joining applications and keeping the lists of
+// stations and their devices. Lean: keep it, since without it nothing but each station's person
+// can end a slip that a leaked credential asked for before it lapses.
+#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[model(label = "authority.slips_voided")]
+#[model(id = "B0TYD6vLCA8Vb3I-wJMLXoiokXB9blRy3ItfSfK5ABo")]
+#[model(no_ffi)]
+pub struct SlipsVoided {
+    #[property(id = "VSkLbKcFQEPERWoc0FY7HMoUURhJ3JOJPiptcDXUuNo")]
+    pub before: Timestamp,
+}

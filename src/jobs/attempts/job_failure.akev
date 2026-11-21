@@ -1,0 +1,43 @@
+[u-Oiv5qGhvh6PuR6PSPIzOyWUTxrqthkXqUKSCM5hS8]
+nonce: W2E8rjDB5g_K-ze4URFie8yi2LVYs1J3PJfrVAR-Vhc, timestamp: 2026-11-21T01:07:31.220Z
+lww: { label: "jobs.job_failure", name: "JobFailure" }, member: system:model
+
+[IKdwbbsNDF8JSE2NxyULnEnzOF0Y4jxiAmpVcf0wwOE]
+nonce: rmY1LbF3xgLXgC4_W7qJwY7zRkpTBiiZsARDn6pNGJQ, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    name: "code"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.job_failure
+    target_model: none
+}
+member: system:property
+
+[BYsi-l0w_mTxnjQGduBXOc2A0UkZa2yljbRqtoytAOc]
+nonce: LNXzUMqilnUFUw1TtN_a7ei_l_zkyRDXRxwbwcm7KVE, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    model: $jobs.job_failure
+    property: $code
+    optional: false
+}
+member: system:model-property
+
+[HhJ6UDg08sH5EzdI0iWqzHs495XXQlpyy-Q1C0w67ho]
+nonce: iLRnj0skXLs2hO5ULPArSnHnsMzIHs7M5m7AIlZ30TA, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    name: "message"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.job_failure
+    target_model: none
+}
+member: system:property
+
+[cdeRelwUfp4sNwX0Htd3zFL3uXcUT0C2vTRUHIb1OIw]
+nonce: 32hi-FJpA1dIumavg79wFKZnXnezLrF0vKa1RLIxFEs, timestamp: 2026-11-21T01:07:31.221Z
+lww: {
+    model: $jobs.job_failure
+    property: $message
+    optional: false
+}
+member: system:model-property

@@ -1,0 +1,23 @@
+[a0fDwfoJf36ur9V6YJUnV7haIFSC_ocuR8QXhE6vicQ]
+nonce: REnwhERGdbJKQAAM09grZhyNWWG7kBZqG_SExZ6TEf4, timestamp: 2026-11-21T01:07:31.215Z
+lww: { label: "authority.retirement", name: "Retirement" }, member: system:model
+
+[bFmPN426_nlcXjIIwtFCBie8jl3e-l8muDXJh2jzwqg]
+nonce: Siu5E4yqwkAalcC-p26eLt-_xk95p85BdrqRjwal9PM, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    name: "retired"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $authority.retirement
+    target_model: none
+}
+member: system:property
+
+[jEifAhDAXw3AbP-ZzXAzOXmTOFnVfwGvpmc8LZyL_zU]
+nonce: AGFaC4zLsnwXVGhQkiY_-_V4GKTPlNI-qq9Rkid2TIk, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    model: $authority.retirement
+    property: $retired
+    optional: false
+}
+member: system:model-property

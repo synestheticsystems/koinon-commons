@@ -1,0 +1,83 @@
+[sW4D0xcq9TVaWSu6kyop7gXpHdCQcBjzagQOBaa_LYs]
+nonce: 1g_JFaPYJEo8XiPPxidXvWlEr4ex_BAbZQNmth2TiHk, timestamp: 2026-11-21T01:07:31.214Z
+lww: { label: "authority.permission_slip", name: "PermissionSlip" }, member: system:model
+
+[nlPHmwqASvnvBR0UmNuQxX3aws88yy6BM5NK1Vkn0wE]
+nonce: 0e4D-7y1I1ofChNMUfvgpz_3YBIRkbQ-9ylmBPEftUw, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "party"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.permission_slip
+    target_model: none
+}
+member: system:property
+
+[Sd0IPOx45FdWhd8GNCEgjt5KD-Fs6hQ8YLEGb4bz_Ok]
+nonce: ZPthXe1UHQVU4CWqugwRs_oZl5MV3uI14BXKDG7oZv4, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    model: $authority.permission_slip
+    property: $party
+    optional: false
+}
+member: system:model-property
+
+[-oVKJAnlW1ftmSbZI7glph-u5xyJBELl8QytALUcP9c]
+nonce: G6cDu_hh_GtDxCnphB1u2SpZVB-dwFYV0EsSM9irFhg, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "party_name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.permission_slip
+    target_model: none
+}
+member: system:property
+
+[xJDbBOJ2kXX-Uknh2V1jQRLgXxAR0pJ0wZQCWagPgoM]
+nonce: uNwnEpTs8Kwfi2Hfa7XDf3tBrDEuJBIL1AiCMxx-Xkc, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    model: $authority.permission_slip
+    property: $party_name
+    optional: false
+}
+member: system:model-property
+
+[qjlXIUr2HftQP9Kf6lwBKiguJcEiczvr1VijjU5lWx0]
+nonce: taAqgzmjluf5K9fRg912gLMSHQTrzjkNpIEmgmqH3dc, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "issued"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $authority.permission_slip
+    target_model: none
+}
+member: system:property
+
+[B1ZGFESNOu1Gjvelp3NB-EH2Apkfx4BJTWxqvxVv6NI]
+nonce: pQx85SVhbdel9M_-6YlTbFIee83yRWFeH3e6BMY14IE, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    model: $authority.permission_slip
+    property: $issued
+    optional: false
+}
+member: system:model-property
+
+[tcjLiCa1HVdnOEGYOGO8ycyPRiDc6wD57s23SN8wjvw]
+nonce: GiU54SZhgFFY_Pp_T92bkx0INLeOZ3ZTXBmemC_6Hu4, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "slip_id"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $authority.permission_slip
+    target_model: none
+}
+member: system:property
+
+[F9ssNYXhFaSTD-IXHO3wPKbrVsSQOd9ic2U-FiN0RAs]
+nonce: Ocnx1BoiaDa0c5eIngTmZqFcFqxz02hdzkkhHYuN_pI, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    model: $authority.permission_slip
+    property: $slip_id
+    optional: false
+}
+member: system:model-property

@@ -5,7 +5,7 @@ nodes, mean the same thing by "a device" or "a station". A layer on the
 [Ankurah Commons](https://github.com/ankurah/commons), in its shape.
 
 **Status: draft, with a mint kept, and no id final.** The definitions of every model in the
-two namespaces, 6 models with 13 properties and their links, are minted, unsigned, in the
+seven namespaces, 50 models with 67 properties and their links, are minted, unsigned, in the
 `.akev` files beside the structs, in the format of the Ankurah revision this crate builds
 against.
 
@@ -14,11 +14,25 @@ against.
 One crate, `koinon-commons`, with a module per namespace, one file per model, and beside each
 model's file the `.akev` file of its minted definitions:
 
-    src/devices/         printers and scales, the stock a printer is loaded with, and the
-                         station that offers them
-    src/nodes/           what a node keeps about the other nodes it works with
+    src/authority/       who may ask a station for what, and how a request proves it: the
+                         application a request is for, permission slips, the restrictions on
+                         an authority, the carriers of what an application's key signed, and
+                         how an authority ends before it lapses
+    src/catalog/         what a registry knows of printers
+    src/devices/         printers and scales, a stock of the kind a printer is loaded with, the
+                         station that offers them, and what a scale reads
+    src/jobs/            what a station is asked to do on its devices, and where each job
+                         stands
+    src/nodes/           what a node keeps about the other nodes it works with, and the
+                         events of its own records it hands them
+    src/registry/        a registry's scopes and grants, and how a station signs a person in
+                         there and registers for an application
+    src/replies/         what any reply may say of its request: done, refused, or not
+                         understood
     src/mime_type.rs     MIME types, by which a document names its format and a printer the
                          formats it takes
+    src/public_key.rs    the keys by which components name stations, parties and applications
+    src/component_ids.rs lists by which one component names others, by their minted ids
     src/namespaces.rs    the namespaces and their models
     src/seed.rs          seeding a node with the kept mint, which it compiles in
     mint/                the tool that mints the definitions and checks a mint, for this
@@ -41,6 +55,11 @@ A model is an Ankurah component, and one entity may carry several:
     a scale      Device + Scale, later Closed when retired
     a sign-in    NodeLink, later Closed when signed out, and reopened when signed in to
                  the same node again
+    a scope      Scope, with its parent when it is a sub-scope, later Closed when it ends
+    a station's  ScopeAssignment + Placement, later Closed when it ends
+    assignment
+    a grant      NodeGrant, with ForApplication for the application it is for, later
+                 Closed when revoked or signed out
 
 `Closed` is the Ankurah Commons' own, from its `records` namespace. A station closes a
 record with `by` unset, because it has no principal of its own to name.
@@ -55,6 +74,32 @@ A station describes a printer as its computer's print system does: the name of i
 and the formats of document the print system accepts for it, as MIME types. What the printer is loaded with is what
 a person last said, written whole rather than as a reference, so that it reads the same on
 every server. A width or a height is a `Dimension`, the Ankurah Commons' type.
+
+## Messages
+
+Every message on Pylon's iroh connections is a set of these components, in an envelope of
+`codec`. A component means the same in a message as on an entity, so that every sender of one
+meaning sends the one component that means it, and a record can keep a component as a message
+carried it. Components are filed by what they mean, never by whether they travel.
+
+- A request is an envelope that holds one request component, which has no properties: it says
+  what is asked, and the facts it acts on travel beside it. A namespace's `requests` module
+  holds the requests that act on its records, such as `jobs::requests::Print`, and each
+  request's documentation is its contract: what it requires and takes, what answers it, and
+  what refuses it.
+- A reply comes back on its request's stream. It is a refusal when it holds `Refusal`, with
+  `NotUnderstood` when the receiver did not understand a component it had to; otherwise it is
+  the answer, the components its request names, or `Done`.
+- A list of things that each hold several components travels as the envelope's records, such
+  as a station's devices or a registry's catalog.
+- What an application's key signs travels as the exact bytes it signed, in a carrier of
+  `authority`: a request signed whole, the permission slip a party's request comes under, or
+  the key's retirement. A receiver checks the signature over the bytes as they arrived, then
+  reads them, and acts on nothing else.
+- A sender lists as one a receiver must understand each request component, each carrier, and
+  each restriction an older receiver must not drop, such as an `Expiry`. A restriction added
+  later is a component of its own, listed so, and never a new property of an old one, which an
+  older receiver would ignore.
 
 ## Building against Ankurah
 

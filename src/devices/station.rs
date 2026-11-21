@@ -1,13 +1,15 @@
 use ankurah::Model;
 use serde::{Deserialize, Serialize};
 
+use crate::codec::Minted;
+
 /// A node that offers the printers and scales on its computer to the servers it is signed in
 /// to, such as an installed copy of Pylon: what a server lists as a station, and what each of
 /// its devices names.
 ///
 /// The station makes this record once and is the only one to change it. Its retirement is
 /// the Ankurah Commons' `Closed`, on the same entity.
-#[derive(Model, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
 #[model(label = "devices.station")]
 #[model(id = "x7iVWAhMXd77hZaS-CRE598fanpmtDia7M_pQI-fKpU")]
 #[model(no_ffi)]

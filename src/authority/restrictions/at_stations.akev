@@ -1,0 +1,23 @@
+[y02GCiLKsbMwV6S0gQnBItGRkGWm5rpsKbS4AI8Mo_w]
+nonce: 1IAWOKgmx9DihX5PYuG_sLfk45QT2hrNxgJDQv1Ag6Q, timestamp: 2026-11-21T01:07:31.215Z
+lww: { label: "authority.at_stations", name: "AtStations" }, member: system:model
+
+[vgYEyJdO3UnhZho8U5I1c_7sddXZEEDB1v9vbEJhFxY]
+nonce: 04acQwenket3eZWuLuXtoqUAdj7Xe5eHshMUl5WNJfg, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    name: "stations"
+    backend: "lww"
+    value_type: "json"
+    minted_for: $authority.at_stations
+    target_model: none
+}
+member: system:property
+
+[q5QKUuk-Gr90Wfaf6wZSdSYuUZK8LixOIZvDGauD9KI]
+nonce: v81nY8U9v-zQdfNa0alaGn_kEhM0uSKtvHZpRVz7e9s, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    model: $authority.at_stations
+    property: $stations
+    optional: false
+}
+member: system:model-property

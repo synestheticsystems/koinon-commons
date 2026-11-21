@@ -1,0 +1,23 @@
+[UTFlProeptdC4-0N_-yVsYn1P8_59Vzy9ZOZepPfpx8]
+nonce: aBe8xEH4pCPWBsmlg5s4gc3lTFxok8CUP7uiowUXKTQ, timestamp: 2026-11-20T06:53:45.584Z
+lww: { label: "registry.node_grant", name: "NodeGrant" }, member: system:model
+
+[KMIVcfbV9k6tao_dsL5wACslvmTa9bd5ooV5aFVgPHA]
+nonce: Ec06BB9K6IeN6z2z9B_1lY3ebwneBRJeQXSplhc2VBY, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "public_key"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.node_grant
+    target_model: none
+}
+member: system:property
+
+[GLq99iJYzODELqMMRB-lyqNnbza4if8MwSQ4o5mtH3w]
+nonce: gPwHrY26mNr8Rl1pmQOOxcuPjiifmhWqXGxwMzSafGw, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.node_grant
+    property: $public_key
+    optional: false
+}
+member: system:model-property

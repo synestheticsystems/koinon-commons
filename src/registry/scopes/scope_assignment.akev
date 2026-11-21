@@ -1,0 +1,23 @@
+[-jryf5idnQSkfFnbllipSPw2VR08tuKGq9IF8ZGRQUA]
+nonce: mmVYu1zNeTamRjfXkdoPx9cGlBhEQUTWH-YTo0PJmSQ, timestamp: 2026-11-20T06:53:45.584Z
+lww: { label: "registry.scope_assignment", name: "ScopeAssignment" }, member: system:model
+
+[YBlIuqRgFN1koyPU1ZGFOKle-Cs1jXH7R62InanIWYM]
+nonce: GxYg2-nCAhl3gI-IYnJHcUAaOqgm5a8W_T-A0CCIMHU, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "station"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.scope_assignment
+    target_model: none
+}
+member: system:property
+
+[xasGMB8fP1L7AqMxVYmyhFOpLRlCGaNdqBFyQH1hz_c]
+nonce: lzYZ9QW5gdrk5lAg6c80bHuXlQvP6M_HqyCaZzPllUM, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.scope_assignment
+    property: $station
+    optional: false
+}
+member: system:model-property

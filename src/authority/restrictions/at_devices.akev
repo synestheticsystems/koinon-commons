@@ -1,0 +1,23 @@
+[OMtujR_QuaFt7MgwwiGPAobBHnWk-phgH8iywZwP5I8]
+nonce: lfMTArYPxcIaWa7iP4WWCpYPuwh3e-AmM1nCxoRwAJg, timestamp: 2026-11-21T01:07:31.215Z
+lww: { label: "authority.at_devices", name: "AtDevices" }, member: system:model
+
+[r4GkW54WXmy4tyIAUH4ZQv7BP4uEWQVgf4iNyoKjT-E]
+nonce: X0GE8GqwyHJdqiPxersACr-HI2BYKwd35O1XvPTrCpg, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    name: "devices"
+    backend: "lww"
+    value_type: "json"
+    minted_for: $authority.at_devices
+    target_model: none
+}
+member: system:property
+
+[blu_eTjadjdC8_O3tcFgAOQlC87y8uWfk3to2sJsHUE]
+nonce: idLHsamxKLmy7NTJUngqi0B6dn6enZwuTkCS0ouALvs, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    model: $authority.at_devices
+    property: $devices
+    optional: false
+}
+member: system:model-property

@@ -1,0 +1,43 @@
+[8T5vX5X1wScs72KInBtY-jdWKJC_2-RQpOxpvWqJNLk]
+nonce: Fpj2zKPb7iER66DhS7qCQolOPTK6eD043kh1c3lDCS4, timestamp: 2026-11-20T06:53:45.584Z
+lww: { label: "registry.scope", name: "Scope" }, member: system:model
+
+[cGZRnB6_zhCfjla1PLfeurcxz3JHTIJvntzxV8W-Evg]
+nonce: nyGI6ljynxuHKGIaNaxuoYxQmuOiq04O54jQnBurvno, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.scope
+    target_model: none
+}
+member: system:property
+
+[OKtbPMMdr4vNsvsHfKfoZqDqCmfUmMm5wGXSvoHX6P8]
+nonce: W5EjymgoHBvfwJIQnivVni2PljfjCqkUeoq8PGchBgQ, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.scope
+    property: $name
+    optional: false
+}
+member: system:model-property
+
+[b_snDbbUJ9tZPd28QN_sT_u0ATJRQV6l1KciEagUjWk]
+nonce: AN_Ial2omfpyo0KQ91RS1KMtombww6JMzl89hMxQ-e4, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "parent"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.scope
+    target_model: none
+}
+member: system:property
+
+[rnnyvmBZC-0_-mvwkIqb2e2eUuhdTrNUcWAzRQLUE6Q]
+nonce: W6Y6wZqfTWD4qC3wFRt0r9hACzhNS_LRrj7SSx2bKLg, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.scope
+    property: $parent
+    optional: true
+}
+member: system:model-property

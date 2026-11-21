@@ -1,0 +1,43 @@
+[OEr6KwWBmwnonz9izlHd_dFmH2FnZfnAxObTUp2kY0g]
+nonce: NBchaJKWDYvlmvOdCFD9dBJm1GKhiQGYI3Q6LK6vCKE, timestamp: 2026-11-20T06:53:45.584Z
+lww: { label: "registry.placement", name: "Placement" }, member: system:model
+
+[PIW1N5qmOlvJsuynUxNENXH_6C13iz20UauTdcineo0]
+nonce: OsjJYzszLopJH9M3_sVyHKrxKjJLk0sIcV44xmFYyNw, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "scope"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.placement
+    target_model: none
+}
+member: system:property
+
+[odniZLSuFlvg6jliKmajIb4JpIyGfXDEhaNurkGUj4g]
+nonce: 394_WiNxAT34kJYOfBipEhN04hgix5qYPsGSPye3tpk, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.placement
+    property: $scope
+    optional: false
+}
+member: system:model-property
+
+[aotgkkATlNgIz0fhHPFekA-IOnSe2nBMxUedwf_InXA]
+nonce: 9CnLHBgQge_nMOAu9zCthbZnEDR8y9akmf4R4-atGzc, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    name: "sub_scope"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.placement
+    target_model: none
+}
+member: system:property
+
+[GXVW3vF7l0jFO_Rj7dEK1VOJ4rHQgdXgl5o3mCR-prs]
+nonce: O33t7ECPqOXQWMGckk77hzpBN-FbsA4HzQoZdndBF9U, timestamp: 2026-11-20T06:53:45.584Z
+lww: {
+    model: $registry.placement
+    property: $sub_scope
+    optional: true
+}
+member: system:model-property

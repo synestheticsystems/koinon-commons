@@ -1,0 +1,23 @@
+[Jdn2IDt0Pgq_BnOR7WmD1CSzJrdYFU4f5T41DHGlMuo]
+nonce: n3RusNFVO9mjsT9dgI37rdkVQS91WkwaSrU-29_ym8c, timestamp: 2026-11-21T01:07:31.214Z
+lww: { label: "authority.allows_requests", name: "AllowsRequests" }, member: system:model
+
+[Ylb5QfNpqOGpQUz-RsMxL4X-UdI9he8Oq4IB5AexBsE]
+nonce: WHaksTUEBhMIHI59HxtwfHWjaw-uYKjVa_mQHTKkb-8, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "requests"
+    backend: "lww"
+    value_type: "json"
+    minted_for: $authority.allows_requests
+    target_model: none
+}
+member: system:property
+
+[-aw2EKhE5NbYwI8TbtiTF5f8LpWk8wYUNnJYYPrm2nM]
+nonce: pNMtZv72KFpggNq9GypZZKcp_f1zyjowfp8wAD23TBI, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    model: $authority.allows_requests
+    property: $requests
+    optional: false
+}
+member: system:model-property

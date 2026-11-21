@@ -1,0 +1,23 @@
+[B0TYD6vLCA8Vb3I-wJMLXoiokXB9blRy3ItfSfK5ABo]
+nonce: -YsKUjQRUkUBJCwFRvGX3-TpCQgUp5lpPAK6GSDlEww, timestamp: 2026-11-21T01:07:31.216Z
+lww: { label: "authority.slips_voided", name: "SlipsVoided" }, member: system:model
+
+[VSkLbKcFQEPERWoc0FY7HMoUURhJ3JOJPiptcDXUuNo]
+nonce: wTzyeMuXWvt2ITNiWot_Y1SPE6_n2oS_1wIpMAIRiBg, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    name: "before"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $authority.slips_voided
+    target_model: none
+}
+member: system:property
+
+[hEU0xwpjz45uAeDoidszPaMPd7Zw1BLS9XiInncRdzE]
+nonce: asuRj5PYQemeu8p87Fk77sOubYIA4N5y8_afxZb73-M, timestamp: 2026-11-21T01:07:31.216Z
+lww: {
+    model: $authority.slips_voided
+    property: $before
+    optional: false
+}
+member: system:model-property

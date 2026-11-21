@@ -1,0 +1,23 @@
+[aoHfYIvYtO1Q8Dl82g4dzSeu7pmFL5uwx0s40VaVmhc]
+nonce: XxsPaRHuerBriNsEp6yH-q8jNvl1_k7zK5vEY4peZnQ, timestamp: 2026-11-21T01:07:31.223Z
+lww: { label: "nodes.events", name: "Events" }, member: system:model
+
+[Aj9eYwuz5OvLpRJpOdYZmt0l7c0in-BiVYTaQuQEg04]
+nonce: dSoWwtQYxC5glk2nCDRdKcEiR0RmZ4nF9cPflyoB3os, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    name: "events"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $nodes.events
+    target_model: none
+}
+member: system:property
+
+[OoVIb1ACSqGmZGYhFLVp8V-gfGubByuXCRCe8lQkeds]
+nonce: 6-qeEpSB5D6Exvx4rFniFiTxuIxBqDH5_uWeUt8ScCg, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    model: $nodes.events
+    property: $events
+    optional: false
+}
+member: system:model-property

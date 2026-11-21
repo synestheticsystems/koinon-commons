@@ -1,12 +1,14 @@
 use ankurah::Model;
 use serde::{Deserialize, Serialize};
 
+use crate::codec::Minted;
+
 /// That this node is signed in to another node, as a station is to a server. The node that
 /// signs in makes the record and sends it to no one. Signing out is the Ankurah Commons'
 /// `Closed`, and signing in again to the same node, the one with the same key, reopens the
 /// record, so that whatever names the record, such as the origin of a job, still names that
 /// node.
-#[derive(Model, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
 #[model(label = "nodes.node_link")]
 #[model(id = "UzCe1eyjgFf9gjAV6EYbO5DoKsLvCvb5JEAPQP-dPxg")]
 #[model(no_ffi)]

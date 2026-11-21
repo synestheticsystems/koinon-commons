@@ -1,0 +1,43 @@
+[HER0P_9s7PPq1hpuHBxuqG1HZuvxqoEn56XdVpv9lu0]
+nonce: nLF8eAxWefE7cflq5lH-R6AoaGSVj7yuQ22gaW12ZJQ, timestamp: 2026-11-20T06:53:45.582Z
+lww: { label: "catalog.printer_fingerprint", name: "PrinterFingerprint" }, member: system:model
+
+[DvWs3dTp3d55NySSJQcnYF0odq--KY_i-h6Tv44f6a0]
+nonce: eOrBUOsqJW-cw8a55_cwt5Rh_PdKEv5UWnexCMqZUtQ, timestamp: 2026-11-20T06:53:45.582Z
+lww: {
+    name: "driver"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $catalog.printer_fingerprint
+    target_model: none
+}
+member: system:property
+
+[c0D8YGv1VPrRYrSEYkGmsXWIChWtwcjm9EK1UiCtzEA]
+nonce: F36QofFK6BQ9m6vh2wnLnPbttI69e5zMegxTZ8umzmU, timestamp: 2026-11-20T06:53:45.582Z
+lww: {
+    model: $catalog.printer_fingerprint
+    property: $driver
+    optional: false
+}
+member: system:model-property
+
+[GSn2A9b_IVN5BHjydBW9B8Sgkx0N-Nd2S6-7sje0cFg]
+nonce: xpTKTQdNlp5WrFtCiRCwyKSpXLKH1G2Nmlft-ZcYq9Q, timestamp: 2026-11-20T08:13:34.152Z
+lww: {
+    name: "document_formats"
+    backend: "lww"
+    value_type: "json"
+    minted_for: $catalog.printer_fingerprint
+    target_model: none
+}
+member: system:property
+
+[tvcYx7j2Ueo0kLWjrRV9sg3Y0yYbwtzVLb98IwuYZIs]
+nonce: 6mLHru4B8AHTP-SDXkoSJ_XoJNJTRsM9Ep5Dtn4Aans, timestamp: 2026-11-20T08:13:34.152Z
+lww: {
+    model: $catalog.printer_fingerprint
+    property: $document_formats
+    optional: false
+}
+member: system:model-property

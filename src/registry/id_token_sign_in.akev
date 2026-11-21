@@ -1,0 +1,43 @@
+[ck1lQOJsZpHeEfj55BrumcImCMNzi03jUCbrBJ6LaZo]
+nonce: Xy1L-J5AoGajqFrKRJUCGtWkdYrgifwo3vbnAiDNfOg, timestamp: 2026-11-21T01:07:31.223Z
+lww: { label: "registry.id_token_sign_in", name: "IdTokenSignIn" }, member: system:model
+
+[vUwIVj80PS3IjUEJL6OfqPomjzwruL5w9OGsTXZwVYs]
+nonce: XHt__pC-rH39aVuCcdexmbEj3aeF4D5rWbNLjPQDSkk, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    name: "id_token"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.id_token_sign_in
+    target_model: none
+}
+member: system:property
+
+[c5ZzWdiGJm-Jq8AS8OyY7I-0U748SNyXH9XJBeoRxMQ]
+nonce: oiBw5lLQXSjEPVBd1iwdzEn5BhQf_KY1_B7TM-cdqIc, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    model: $registry.id_token_sign_in
+    property: $id_token
+    optional: false
+}
+member: system:model-property
+
+[FpArjlvlXMTyVFAylAONByjR4ohZUkbrkesFvZR5IlI]
+nonce: Y095yCqn77DBCu02_vmsrzfllJUJYgai6G4iCnViGic, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    name: "nonce_seed"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.id_token_sign_in
+    target_model: none
+}
+member: system:property
+
+[HyqxAUdbe1fiTa6TFf36NzgTh656O6oVb-qixUJM9gQ]
+nonce: 4hENSA-xmqXTk6BiaaXkpw3TOKhFgMvwPbHFpgK2DP0, timestamp: 2026-11-21T01:07:31.223Z
+lww: {
+    model: $registry.id_token_sign_in
+    property: $nonce_seed
+    optional: false
+}
+member: system:model-property

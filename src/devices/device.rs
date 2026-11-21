@@ -2,13 +2,15 @@ use super::Station;
 use ankurah::{property::Ref, Model};
 use serde::{Deserialize, Serialize};
 
+use crate::codec::Minted;
+
 /// One printer or scale that a station offers. What kind it is follows from the other
 /// components on its entity: `Printer`, with `Media` once someone has said what it is
 /// loaded with, or `Scale`. Its retirement is the Ankurah Commons' `Closed`.
 ///
 /// Whether the device is ready at this moment is not recorded: the station reports that
 /// over its connection.
-#[derive(Model, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
 #[model(label = "devices.device")]
 #[model(id = "ULVl4nlCm9s4wkRAosvq9iDNwy5ePclWoGHd_c60z-g")]
 #[model(no_ffi)]

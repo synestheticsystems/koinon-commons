@@ -1,0 +1,18 @@
+[package]
+name    = "koinon-commons-derive"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+# Published with the crate whose codec re-exports it, once that crate is.
+publish = false
+
+[lib]
+proc-macro = true
+
+[dependencies]
+# A minted id's text, read with the engine Ankurah's `EntityId::from_base64` reads it with, so
+# that a text Ankurah's derive accepts this one accepts.
+base64      = "0.22"
+proc-macro2 = "1"
+quote       = "1"
+syn         = { workspace = true }

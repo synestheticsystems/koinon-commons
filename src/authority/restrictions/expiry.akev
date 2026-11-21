@@ -1,0 +1,23 @@
+[khmTklrBcgxzZEdATzyvhRvt_9HDLPPS8DYVyoQX_Ls]
+nonce: zdm4QlvcsqjU67MJ6rimp9ei8a29p2uwC23BOYkfQg4, timestamp: 2026-11-21T01:07:31.215Z
+lww: { label: "authority.expiry", name: "Expiry" }, member: system:model
+
+[L4Egrh_tkS7SE2EQcSa6pu2kPSP8TqnXV01GIckHwlQ]
+nonce: Y4tLdfwUf9iCLWofDkHq8v-6EG9xi769FueMy8Yn-Ls, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    name: "expires"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $authority.expiry
+    target_model: none
+}
+member: system:property
+
+[2k6EMU_p3dez9L8XlAI3dVtBxf54aMM7O6sCp-ptCMg]
+nonce: j-e1G6orn6hsjVVE4O4R62YbQWF-L34gh0sE1pPAPLU, timestamp: 2026-11-21T01:07:31.215Z
+lww: {
+    model: $authority.expiry
+    property: $expires
+    optional: false
+}
+member: system:model-property

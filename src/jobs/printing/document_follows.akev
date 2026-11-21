@@ -1,0 +1,23 @@
+[KHr2sIEoCMDMH1g0YiIR-dsXoRc5vel8HGm1HqeaFX0]
+nonce: 62cZQCMzG4I0gAieHGgc0O-JwGbUP3KVqnhxz71J46Q, timestamp: 2026-11-21T01:07:31.222Z
+lww: { label: "jobs.document_follows", name: "DocumentFollows" }, member: system:model
+
+[E-OWlNv7oDUbTwDxfKoEV9vjRHpuF_bAxrGjvW2l-Kw]
+nonce: KWc4cqav-4pleyn2CSiEE0btIc1-fSWa-H46ptG0nKY, timestamp: 2026-11-21T01:07:31.222Z
+lww: {
+    name: "length"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $jobs.document_follows
+    target_model: none
+}
+member: system:property
+
+[s2LyPELs0aNA_u7PZUE0W1V_cpWJ7VVdX34ZxacJsy4]
+nonce: sxddpBAW_NVU1FzQtYmU2yJWOjd80BwRaYtmOCU-LfM, timestamp: 2026-11-21T01:07:31.222Z
+lww: {
+    model: $jobs.document_follows
+    property: $length
+    optional: false
+}
+member: system:model-property

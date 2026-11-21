@@ -8,24 +8,37 @@ license.workspace = true
 publish = false
 
 [dependencies]
-ankurah         = { workspace = true }
-ankurah-commons = { workspace = true }
-serde           = { version = "1", features = ["derive"] }
-thiserror       = "2"
+ankurah               = { workspace = true }
+ankurah-commons       = { workspace = true }
+# `#[derive(Minted)]`, which `codec` re-exports beside the trait it implements.
+koinon-commons-derive = { path = "derive" }
+# The events a push hands a registry, in the encoding Ankurah's own messages give them.
+bincode               = "1"
+# The keys components name stations, parties and applications by, each checked to be a key,
+# and the signatures over carried envelopes, made and checked. The major version iroh's keys
+# use, so that a node converts between the two without a second copy of the curve.
+ed25519-dalek         = "3"
+# A float in an envelope, in the shortest width that keeps every bit of it.
+half                  = "2"
+serde                 = { version = "1", features = ["derive"] }
+# The JSON of a json-typed property, which an envelope carries as CBOR; the seed's tests also
+# compare a record as created and as fetched through it.
+serde_json            = "1"
+thiserror             = "2"
 
 [dev-dependencies]
 # Durable nodes to seed, on the two storage engines the Ankurah Commons' tests use.
 ankurah-storage-sled   = { workspace = true }
 ankurah-storage-sqlite = { workspace = true }
-# A record as created and as fetched, compared whole.
-serde_json           = "1"
+# A stand-in for a signature over an envelope's bytes.
+sha2                   = "0.10"
 # The guard on the list of models reads the namespaces' sources.
-syn                  = { workspace = true }
-tokio                = { version = "1", features = ["macros", "rt"] }
+syn                    = { workspace = true }
+tokio                  = { version = "1", features = ["macros", "rt"] }
 
 [workspace]
 resolver = "2"
-members  = ["mint"]
+members  = ["derive", "mint"]
 
 [workspace.package]
 edition = "2021"

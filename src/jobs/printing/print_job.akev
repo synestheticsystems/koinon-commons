@@ -1,0 +1,63 @@
+[nQF-f7gcJIaahDZ02CJzwtanB7_YAW1t9NK1E0Ng-Nw]
+nonce: IGkc5ZoW5sGapBwYcHS8MJ_NqiBQak3lUBH8PljlQjA, timestamp: 2026-11-20T06:53:45.583Z
+lww: { label: "jobs.print_job", name: "PrintJob" }, member: system:model
+
+[GSvYIeWQJj2N0WsQnFFj5xC5_RiVZrw3zm9G8GrZw38]
+nonce: i6ohNVhYbsbmn-4x4THgp8PBaAuiNesBc5uaYH6kq9Y, timestamp: 2026-11-20T08:13:34.153Z
+lww: {
+    name: "document_format"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.print_job
+    target_model: none
+}
+member: system:property
+
+[hTyJKFlhBtkkXQ_Szp9kAG3Vurtc4ajb_kgTkyCykeA]
+nonce: 2OAhZAD_KQ_zfKw1EqfZauJoMmbRSt8biQBuVtDIJC4, timestamp: 2026-11-20T08:13:34.153Z
+lww: {
+    model: $jobs.print_job
+    property: $document_format
+    optional: false
+}
+member: system:model-property
+
+[BAPEzYjSNDjjmq5ukHGsuuPdIaH3kRKd0iJaol9jmj8]
+nonce: wZn2Fo5gzA7wxeTxOxLJkArMnQ9phVxJFX-_uJKTknI, timestamp: 2026-11-20T06:53:45.583Z
+lww: {
+    name: "copies"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $jobs.print_job
+    target_model: none
+}
+member: system:property
+
+[s8xWUUus_qR4gdBNqdLsvXYgmbZYmnSLqixcBHMRmws]
+nonce: B8PbZSWAx7TYw8Ek4KsKHsxhjetGfu4vmBhvThe7xdI, timestamp: 2026-11-20T06:53:45.583Z
+lww: {
+    model: $jobs.print_job
+    property: $copies
+    optional: false
+}
+member: system:model-property
+
+[Z7r75Ma_rNFuTBAwbvGmB3GlALeAzz7CGFpkVlWMxc0]
+nonce: 1rsyduZ0wTmxDfeZdPYaxbk9rHHmfa2YwHIitXFaczw, timestamp: 2026-11-20T06:53:45.583Z
+lww: {
+    name: "document_hash"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.print_job
+    target_model: none
+}
+member: system:property
+
+[HYZsC3LL84n3-oZCCnRgGsdo6C-Ki7_FAkG0BP3DRlg]
+nonce: KaW0iT92Qa96ZT38CqYsMkCiCIWFzVGE2Cx1VzUK72o, timestamp: 2026-11-20T06:53:45.583Z
+lww: {
+    model: $jobs.print_job
+    property: $document_hash
+    optional: false
+}
+member: system:model-property

@@ -48,12 +48,56 @@ macro_rules! kept {
 /// The kept mint, as compiled into the crate: each model's `.akev` file, by its path under
 /// `src/`.
 const KEPT_MINT: &[(&str, &str)] = kept![
+    "authority/for_application.akev",
+    "authority/permission_slip.akev",
+    "authority/requests/retire.akev",
+    "authority/requests/void_slips.akev",
+    "authority/restrictions/allows_requests.akev",
+    "authority/restrictions/at_devices.akev",
+    "authority/restrictions/at_stations.akev",
+    "authority/restrictions/expiry.akev",
+    "authority/revocation/retirement.akev",
+    "authority/revocation/slips_voided.akev",
+    "authority/signatures/presented_slip.akev",
+    "authority/signatures/signed_request.akev",
+    "authority/signatures/signed_retirement.akev",
+    "catalog/printer_fingerprint.akev",
+    "catalog/requests/get_catalog.akev",
     "devices/device.akev",
     "devices/media.akev",
     "devices/printer.akev",
+    "devices/requests/list_devices.akev",
     "devices/scale.akev",
+    "devices/scale_reading.akev",
     "devices/station.akev",
+    "jobs/attempts/job_attempt.akev",
+    "jobs/attempts/job_failure.akev",
+    "jobs/for_device.akev",
+    "jobs/job_id.akev",
+    "jobs/job_label.akev",
+    "jobs/printing/document_follows.akev",
+    "jobs/printing/print_job.akev",
+    "jobs/requests/print.akev",
+    "jobs/requests/weigh.akev",
+    "nodes/events.akev",
     "nodes/node_link.akev",
+    "nodes/requests/push_events.akev",
+    "registry/id_token_sign_in.akev",
+    "registry/node_grant.akev",
+    "registry/registered_for.akev",
+    "registry/requests/hello.akev",
+    "registry/requests/register.akev",
+    "registry/requests/sign_in.akev",
+    "registry/requests/stop_sharing.akev",
+    "registry/scopes/first_scope.akev",
+    "registry/scopes/placement.akev",
+    "registry/scopes/registrable.akev",
+    "registry/scopes/scope.akev",
+    "registry/scopes/scope_assignment.akev",
+    "registry/signed_in_person.akev",
+    "replies/done.akev",
+    "replies/not_understood.akev",
+    "replies/refusal.akev",
 ];
 
 /// The events of the kept mint.
@@ -159,16 +203,16 @@ mod tests {
         held(&view.to_model().unwrap())
     }
 
-    /// One record of each namespace, as a station makes them: its own record, a printer with
-    /// the stock it is loaded with, a scale, and its link to a server it signed in to. Each
-    /// reads back, fetched by its components, as it was created.
+    /// Each kind of record a station makes: its own record, a printer with the stock it is
+    /// loaded with, a scale, and its link to a server it signed in to. Each reads back, fetched
+    /// by its components, as it was created.
     #[tokio::test]
-    async fn a_seeded_node_creates_and_fetches_a_record_of_each_namespace() {
-        creates_and_fetches_a_record_of_each_namespace(sled().await).await;
-        creates_and_fetches_a_record_of_each_namespace(sqlite().await).await;
+    async fn a_seeded_node_creates_and_fetches_each_kind_of_record_a_station_makes() {
+        creates_and_fetches_each_kind_of_record_a_station_makes(sled().await).await;
+        creates_and_fetches_each_kind_of_record_a_station_makes(sqlite().await).await;
     }
 
-    async fn creates_and_fetches_a_record_of_each_namespace<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
+    async fn creates_and_fetches_each_kind_of_record_a_station_makes<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
         let node = seeded(engine).await;
         let context = node.context_async(DEFAULT_CONTEXT).await.unwrap();
         let station = Station { public_key: "station key".to_owned(), name: "Pack bench 3".to_owned() };

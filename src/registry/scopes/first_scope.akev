@@ -1,0 +1,23 @@
+[k8PbpVkHbVTYqBRC8OvuzfbzZkcriMsgtl_M8KBtH6I]
+nonce: KVxBMmiwD9Pbespw11J0w24gc-dkLv_lqwcyqrcTozk, timestamp: 2026-11-21T01:07:31.224Z
+lww: { label: "registry.first_scope", name: "FirstScope" }, member: system:model
+
+[VDxevSz9tQOOEjYYdgiJH6qj3TgplFzaSShY270pKW0]
+nonce: h8ZHcoss9s66zBt2E7V2qgE8z7k6fV7sJ7jiKcGBUJs, timestamp: 2026-11-21T01:07:31.224Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $registry.first_scope
+    target_model: none
+}
+member: system:property
+
+[xUXf_ngJDHCKCYbqqLjf8cDPxv4Kxqf6yXtuW2Qq3lQ]
+nonce: GYlRuEJyYXH6bY7Ra_dDjLFmfiafY5BAmDLNmCP5lT8, timestamp: 2026-11-21T01:07:31.224Z
+lww: {
+    model: $registry.first_scope
+    property: $name
+    optional: false
+}
+member: system:model-property

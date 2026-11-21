@@ -1,0 +1,23 @@
+[X8qiX3Of_rHKHePD80zFJUyaei_IW3bl6efg2VnrMic]
+nonce: Y0K5YvcITlkw4odPaFYzjs2QzUa9I69CvcumFvnCaBc, timestamp: 2026-11-21T01:07:31.214Z
+lww: { label: "authority.for_application", name: "ForApplication" }, member: system:model
+
+[ejd2oVD8Pqzogtk4ZIPVmhCq5sr9V6Cj5Kytfhsm97A]
+nonce: u-k_xC2KC5rnKVXpQ0ug5X_Y2BinkY-RvBF2DAZEElM, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    name: "key"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.for_application
+    target_model: none
+}
+member: system:property
+
+[kDelXVDa8mwcnQg_uLqbZGBFOBVon0TgwzA6F0fu0Nc]
+nonce: 9nkJ2c4MrWUowABdvZuee3LeHBoOvJ1O-PwNLfhWTI0, timestamp: 2026-11-21T01:07:31.214Z
+lww: {
+    model: $authority.for_application
+    property: $key
+    optional: false
+}
+member: system:model-property
