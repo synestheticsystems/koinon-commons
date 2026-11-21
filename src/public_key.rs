@@ -1,20 +1,22 @@
-//! Public keys, by which components name stations, parties and applications: where an authority
-//! holds, whom a permission slip is for, which application a request is for, and whose key
-//! signed an envelope that another carries.
+//! Public keys, by which components name stations, parties and applications: a station by its own
+//! record, where an authority is honoured, whom a permission slip is for, which application a
+//! request is for, and whose key signed an envelope that another carries.
 
 use std::fmt;
 
 use ankurah::{property::PropertyError, value::Value, Property};
 use ed25519_dalek::VerifyingKey;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::hex::{from_lower_hex, lower_hex};
+use crate::stored_forms::{distinct_list, from_lower_hex, lower_hex, ListedText};
 
 /// The public half of an Ed25519 key pair: a station's or a party's, the key of its iroh
 /// endpoint, which its connection proves; or an application's, whose secret half signs for it.
 /// Stored and carried as its text, its 32 bytes as 64 lower-case hexadecimal digits, as iroh
 /// writes a key, so that a key has one text and two texts name the same key exactly when they
 /// are equal. A text of any other shape is no key, and neither are 32 bytes that name no point of
-/// the curve, since no key pair has them.
+/// the curve, since no key pair has them. In JSON, as the records of devices and nodes and a
+/// registry's grants are written there, a string of its text.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct PublicKey([u8; 32]);
 
@@ -89,63 +91,35 @@ impl Property for PublicKey {
     }
 }
 
-/// Public keys, at least one and none twice, such as the stations at which an authority holds.
-/// Stored as a JSON array of the keys' texts, in the order given.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PublicKeys(Vec<PublicKey>);
-
-impl PublicKeys {
-    pub fn new(keys: Vec<PublicKey>) -> Result<Self, NotPublicKeys> {
-        if keys.is_empty() {
-            return Err(NotPublicKeys::Empty);
-        }
-        if let Some((index, _)) = keys.iter().enumerate().find(|(index, key)| keys[..*index].contains(key)) {
-            return Err(NotPublicKeys::Twice(keys[index]));
-        }
-        Ok(PublicKeys(keys))
-    }
-
-    pub fn keys(&self) -> &[PublicKey] {
-        &self.0
-    }
-
-    pub fn contains(&self, key: &PublicKey) -> bool {
-        self.0.contains(key)
+impl Serialize for PublicKey {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.text())
     }
 }
 
-/// Why a list of keys is no [`PublicKeys`].
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum NotPublicKeys {
-    #[error("no key is listed")]
-    Empty,
-    #[error("{0} is listed twice")]
-    Twice(PublicKey),
+impl<'de> Deserialize<'de> for PublicKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        PublicKey::from_text(&String::deserialize(deserializer)?).map_err(serde::de::Error::custom)
+    }
 }
 
-impl Property for PublicKeys {
-    const VALUE_TYPE: &'static str = "json";
-
-    fn into_value(&self) -> Result<Option<Value>, PropertyError> {
-        Ok(Some(Value::Json(self.0.iter().map(|key| serde_json::Value::String(key.text())).collect())))
+impl ListedText for PublicKey {
+    fn listed_text(&self) -> String {
+        self.text()
     }
 
-    fn from_value(value: Option<Value>) -> Result<Self, PropertyError> {
-        match value {
-            Some(json @ Value::Json(_)) => {
-                let texts: Vec<String> = json.parse_as_json().map_err(|error| PropertyError::DeserializeError(Box::new(error)))?;
-                // A key of another shape, like a list that breaks the list's rules, is a value the
-                // list refuses, not JSON that does not parse.
-                let invalid =
-                    |refused: &dyn fmt::Display| PropertyError::InvalidValue { value: refused.to_string(), ty: "PublicKeys".to_owned() };
-                let keys =
-                    texts.iter().map(|text| PublicKey::from_text(text)).collect::<Result<_, _>>().map_err(|refused| invalid(&refused))?;
-                PublicKeys::new(keys).map_err(|refused| invalid(&refused))
-            }
-            Some(other) => Err(PropertyError::InvalidVariant { given: other, ty: "PublicKeys".to_owned() }),
-            None => Err(PropertyError::Missing),
-        }
+    fn from_listed_text(text: &str) -> Result<Self, String> {
+        PublicKey::from_text(text).map_err(|refused| refused.to_string())
     }
+}
+
+distinct_list! {
+    /// Public keys, at least one and none twice, in the order given, such as the stations at
+    /// which an authority is honoured. Stored as a JSON array of the keys' texts.
+    pub struct PublicKeys(Vec<PublicKey>), each a "key", given by keys;
+
+    /// Why a list of keys is no [`PublicKeys`].
+    pub enum NotPublicKeys;
 }
 
 #[cfg(test)]
@@ -179,18 +153,32 @@ mod tests {
         }
     }
 
+    // The JSON a station's record and a registry's grant were written in before the key had a type
+    // of its own, a string of the key's text, so that records already written read as before.
+    #[test]
+    fn a_key_is_a_json_string_of_its_text_and_one_of_another_shape_does_not_read() {
+        let key = key(7);
+        assert_eq!(serde_json::to_value(key).unwrap(), serde_json::json!(key.text()));
+        assert_eq!(serde_json::from_value::<PublicKey>(serde_json::json!(key.text())).unwrap(), key);
+        for refused in [serde_json::json!(key.text().to_uppercase()), serde_json::json!("station key"), serde_json::json!(7)] {
+            assert!(serde_json::from_value::<PublicKey>(refused.clone()).is_err(), "{refused}");
+        }
+    }
+
     #[test]
     fn a_list_of_keys_is_stored_as_a_json_array_of_their_texts_in_its_order() {
         let keys = PublicKeys::new(vec![key(2), key(1)]).unwrap();
         let stored = keys.into_value().unwrap();
         assert_eq!(stored, Some(Value::Json(serde_json::json!([key(2).text(), key(1).text()]))));
         assert_eq!(PublicKeys::from_value(stored).unwrap(), keys);
+        assert!(keys.contains(&key(1)) && !keys.contains(&key(3)));
     }
 
     #[test]
     fn a_list_that_is_empty_names_a_key_twice_or_holds_no_key_does_not_read() {
         assert_eq!(PublicKeys::new(Vec::new()), Err(NotPublicKeys::Empty));
         assert_eq!(PublicKeys::new(vec![key(1), key(2), key(1)]), Err(NotPublicKeys::Twice(key(1))));
+        assert_eq!(NotPublicKeys::Twice(key(1)).to_string(), format!("the key {} is listed twice", key(1).text()));
         for refused in [serde_json::json!([]), serde_json::json!([key(1).text(), key(1).text()]), serde_json::json!(["station"])] {
             let read = PublicKeys::from_value(Some(Value::Json(refused.clone())));
             assert!(matches!(read, Err(PropertyError::InvalidValue { .. })), "{refused}: {read:?}");

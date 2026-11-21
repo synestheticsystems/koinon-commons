@@ -10,7 +10,7 @@ use crate::codec::Minted;
 ///
 /// Whether the device is ready at this moment is not recorded: the station reports that
 /// over its connection.
-#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "devices.device")]
 #[model(id = "ULVl4nlCm9s4wkRAosvq9iDNwy5ePclWoGHd_c60z-g")]
 #[model(no_ffi)]
