@@ -38,11 +38,6 @@ impl Refused {
     }
 }
 
-/// Whether `outcome` is a refusal as `not_authorized`.
-pub fn not_authorized<T>(outcome: Result<T, Refused>) -> bool {
-    outcome.is_err_and(|refused| refused.code == Refusal::NOT_AUTHORIZED)
-}
-
 impl fmt::Display for Refused {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.code, self.why)
@@ -70,6 +65,11 @@ impl From<NotOpened> for Refused {
             NotOpened::Unreadable(error) => Refused::bad_request(error),
         }
     }
+}
+
+/// Whether `outcome` is a refusal as `not_authorized`.
+pub fn not_authorized<T>(outcome: Result<T, Refused>) -> bool {
+    outcome.is_err_and(|refused| refused.code == Refusal::NOT_AUTHORIZED)
 }
 
 /// The request components a station takes, each with the components beside it that it acts on,

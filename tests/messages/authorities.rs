@@ -158,8 +158,8 @@ fn a_slip_presented_by_another_party_is_refused() -> Outcome {
 }
 
 /// A party the station's person blocked under the application is refused, though its slip is
-/// valid in every other way and it presents the slip on its own connection; the same slip's party
-/// that no one blocked is honoured.
+/// valid in every other way and it presents the slip on its own connection; a slip like it, for a
+/// party no one blocked, is honoured.
 #[test]
 fn a_slip_whose_party_the_stations_person_blocked_is_refused() -> Outcome {
     let blocked = presented_slip_for(&blocked_party(), NOW - MINUTE, NOW + 60 * MINUTE, &[Weigh::ID], &[])?;

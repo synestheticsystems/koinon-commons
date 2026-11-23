@@ -3,10 +3,10 @@ use ankurah::{property::Ref, Model};
 use super::NodeGrant;
 use crate::codec::Minted;
 
-/// The grant a request is for, by its record: the registration that a station's notice that it no
-/// longer shares its devices with an application ends (`StopSharing`), named by the grant the
-/// registry wrote for it, as the registry's `Registration` gave it, so that a notice that arrives
-/// late ends that registration alone and never one written since. A notice names nothing else of
+/// The grant a request is for, by its record: how a station's notice that it no longer shares its
+/// devices with an application (`StopSharing`) names the one registration it ends, by the grant of
+/// the `Registration` the registry answered that registration with, so that a notice that arrives
+/// late ends that registration alone and never one written since. The notice needs nothing else of
 /// the registration, since the registry knows the rest by its grant.
 ///
 /// A sender lists it as a component a receiver must understand, since a receiver that dropped it

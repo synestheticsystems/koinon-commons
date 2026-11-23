@@ -12,8 +12,9 @@ use ankurah::{property::PropertyError, value::Value, Property};
 pub struct HostName(String);
 
 impl HostName {
-    /// The most characters a host name has in all, and in one label.
+    /// The most characters a host name has in all.
     const MAX_LEN: usize = 253;
+    /// The most characters one of its labels has.
     const MAX_LABEL_LEN: usize = 63;
 
     pub fn new(text: impl Into<String>) -> Result<Self, NotAHostName> {

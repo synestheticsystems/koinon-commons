@@ -53,8 +53,8 @@ pub trait Signed: Minted {
     /// components it acts on in this kind of statement, such as a slip's body, its party and its
     /// restrictions, and no other. A statement is the envelope's own components, and no reader of
     /// one reads its records, so a component the envelope lists as one a receiver must understand
-    /// and holds in a record is refused too, named with the others, since the reader would drop
-    /// it, as it would a restriction there.
+    /// and holds in a record, such as a restriction put there, is refused too, named with the
+    /// others, since the reader would drop it.
     fn open(&self, limits: &Limits, understood: &[MintedId]) -> Result<ReceivedEnvelope<'_>, NotOpened> {
         self.verify()?;
         Ok(self.content().decode(limits, understood)?)
