@@ -26,7 +26,6 @@
 mod applications;
 mod restrictions;
 mod revocation;
-mod signatures;
 mod slips;
 
 pub mod requests;
@@ -34,5 +33,4 @@ pub mod requests;
 pub use applications::*;
 pub use restrictions::*;
 pub use revocation::*;
-pub use signatures::*;
 pub use slips::*;

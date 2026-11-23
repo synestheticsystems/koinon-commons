@@ -60,10 +60,6 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "authority/restrictions/expiry.akev",
     "authority/revocation/retirement.akev",
     "authority/revocation/slips_voided.akev",
-    "authority/signatures/presented_slip.akev",
-    "authority/signatures/signed_hosting.akev",
-    "authority/signatures/signed_request.akev",
-    "authority/signatures/signed_retirement.akev",
     "authority/slips/party.akev",
     "authority/slips/permission_slip.akev",
     "catalog/printer_fingerprint.akev",
@@ -117,16 +113,12 @@ fn kept_mint() -> Result<Vec<Attested<Event>>, SeedError> {
 mod tests {
     use super::*;
     use crate::{
-        authority::{AllowsRequests, AtStations, Expiry, ExpiryView, Party, PermissionSlip, PresentedSlip, PresentedSlipView, Signed},
-        codec::{EnvelopeBuilder, Minted, SealedEnvelope},
-        component_ids::ComponentIds,
         devices::*,
-        jobs::{requests::Print, *},
+        jobs::*,
         mime_type::{MimeType, MimeTypes},
-        name::Name,
         namespaces::NAMESPACES,
         nodes::*,
-        public_key::{PublicKey, PublicKeys},
+        public_key::PublicKey,
     };
     use ankurah::{
         core::schema::registration::RegistrationError,
@@ -267,16 +259,15 @@ mod tests {
     }
 
     /// What a station keeps of a print it took, the components its request and its answer carried,
-    /// and what a registry keeps of a slip it issued, the carrier as the application's key signed
-    /// it with the slip's expiry beside it: each stored as a message carried it, and fetched back
-    /// whole, so that a record keeps a component as it travelled.
+    /// stored as the messages carried them, and fetched back whole, so that a record keeps a
+    /// component as it travelled.
     #[tokio::test]
-    async fn a_seeded_node_stores_a_stations_job_and_a_carried_slip_as_messages_carried_them() {
-        stores_a_stations_job_and_a_carried_slip(sled().await).await;
-        stores_a_stations_job_and_a_carried_slip(sqlite().await).await;
+    async fn a_seeded_node_stores_a_stations_job_as_its_messages_carried_it() {
+        stores_a_stations_job(sled().await).await;
+        stores_a_stations_job(sqlite().await).await;
     }
 
-    async fn stores_a_stations_job_and_a_carried_slip<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
+    async fn stores_a_stations_job<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
         let node = seeded(engine).await;
         let context = node.context_async(DEFAULT_CONTEXT).await.unwrap();
         let device = ForDevice { device: Ref::new(EntityId::from_bytes([11; 32])) };
@@ -302,38 +293,12 @@ mod tests {
         stage(&context, created.entity(), &failure).await;
         transaction.commit().await.unwrap();
 
-        let expiry = Expiry { expires: Timestamp::from_unix_millis(1_795_204_800_000) };
-        let mut envelope = EnvelopeBuilder::new();
-        envelope
-            .add_must_understand(&PermissionSlip {
-                issued: Timestamp::from_unix_millis(1_794_600_000_000),
-                slip_id: EntityId::from_bytes([30; 32]),
-            })
-            .unwrap()
-            .add_must_understand(&Party { key: key(3), name: Name::new("Warehouse label PC").unwrap() })
-            .unwrap()
-            .add_must_understand(&AtStations { stations: PublicKeys::new(vec![key(2)]).unwrap() })
-            .unwrap()
-            .add_must_understand(&AllowsRequests { requests: ComponentIds::new(vec![Print::ID]).unwrap() })
-            .unwrap()
-            .add_must_understand(&expiry)
-            .unwrap();
-        let slip = PresentedSlip::sign(SealedEnvelope::new(envelope.encode()), &SigningKey::from_bytes(&[1; 32]));
-        let transaction = context.begin();
-        let created = transaction.create(&slip).await.unwrap();
-        stage(&context, created.entity(), &expiry).await;
-        transaction.commit().await.unwrap();
-
         let (device_view, job_view, label_view, print_view, attempt_view, failure_view) =
             fetched::<(ForDeviceView, JobIdView, JobLabelView, PrintJobView, JobAttemptView, JobFailureView)>(&context).await;
         assert_eq!(
             (read(&device_view), read(&job_view), read(&label_view), read(&print_view), read(&attempt_view), read(&failure_view)),
             (device, job, label, print, attempt, failure)
         );
-        let (slip_view, expiry_view) = fetched::<(PresentedSlipView, ExpiryView)>(&context).await;
-        let stored = read(&slip_view);
-        assert_eq!((&stored, read(&expiry_view)), (&slip, expiry));
-        assert_eq!(stored.verify(), Ok(()), "the stored slip's signature verifies over the bytes it keeps");
     }
 
     /// Every event and state the store holds for each entity of the kept mint, as stored.

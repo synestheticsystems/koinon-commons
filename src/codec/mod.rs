@@ -49,7 +49,6 @@ mod building;
 mod cbor;
 mod minted;
 mod received;
-mod sealed;
 mod structure;
 #[cfg(test)]
 mod tests;
@@ -59,7 +58,6 @@ pub use building::{EncodeError, EnvelopeBuilder, PropertyWriter, RecordBuilder};
 pub use koinon_commons_derive::Minted;
 pub use minted::{Minted, MintedId};
 pub use received::{Properties, ReadError, ReceivedComponents, ReceivedEnvelope, ReceivedRecord, Wanted};
-pub use sealed::SealedEnvelope;
 pub use structure::{DecodeError, Limits};
 pub use value::ValueProblem;
 

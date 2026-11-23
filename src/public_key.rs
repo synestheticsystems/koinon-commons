@@ -43,11 +43,6 @@ impl PublicKey {
     pub fn text(&self) -> String {
         lower_hex(&self.0)
     }
-
-    /// The key, as a signature is checked with it.
-    pub(crate) fn verifying_key(&self) -> VerifyingKey {
-        VerifyingKey::from_bytes(&self.0).expect("a PublicKey names a point of the curve, which was checked when it was made")
-    }
 }
 
 impl From<VerifyingKey> for PublicKey {
