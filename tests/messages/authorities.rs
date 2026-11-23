@@ -46,7 +46,7 @@ fn weigh_beside(presented: &PresentedSlip, connection: &PublicKey, voided: Optio
         .add(&ForDevice { device: scale_record().into() })?
         .add_must_understand(presented)?
         .encode();
-    Ok(under_slip(&station_reads(&request), connection, voided.map(at)).map(|_| ()))
+    Ok(station_reads(&request).and_then(|received| under_slip(&received, connection, voided.map(at))).map(|_| ()))
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn a_voiding_is_taken_only_from_the_registry_its_application_came_through() -> O
         .add_must_understand(&voided)?
         .add(&ForApplication { key: key_of(&application()) })?
         .encode();
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     assert_eq!(voiding(&received, &Path::Registry(registry()))?.0, voided);
     assert!(not_authorized(voiding(&received, &Path::Registry(key(7))).map(|_| ())));
     assert!(not_authorized(voiding(&received, &Path::Direct).map(|_| ())));

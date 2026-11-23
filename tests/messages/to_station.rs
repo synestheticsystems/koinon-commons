@@ -14,13 +14,21 @@ use super::{
 
 /// What a station answers a print with: the job's attempt, with how it failed when it did; or the
 /// refusal of a print the station did not take.
-type Answered = Result<(JobAttempt, Option<JobFailure>), Refusal>;
+type Answered = Result<(JobAttempt, Option<JobFailure>), ReceivedRefusal>;
 
 /// What a station answers a print with, read as the registry reads it to pass it on to the caller:
 /// a refusal when the answer carries one, which carries no attempt, and otherwise the job's
-/// attempt.
+/// attempt, with a `JobFailure` beside it when the attempt failed and beside no other, as
+/// `JobFailure` sets out, so that the registry never passes on a failure with no word of how, nor
+/// one beside an attempt that did not fail.
 fn read_attempt(answer: &[u8]) -> Result<Answered, Box<dyn Error>> {
-    reply(answer, |answer| Ok(answer.components().read()?))
+    reply(answer, |answer| {
+        let (attempt, failure) = answer.components().read::<(JobAttempt, Option<JobFailure>)>()?;
+        if (attempt.state == AttemptState::Failed) != failure.is_some() {
+            return Err("a failure comes beside a failed attempt, and beside no other".into());
+        }
+        Ok((attempt, failure))
+    })
 }
 
 /// A caller's print through a registry's gateway, signed whole, read by the station from inside
@@ -53,6 +61,22 @@ fn a_print_whose_attempt_failed_is_answered_with_the_attempt_and_its_failure() -
     Ok(())
 }
 
+/// An answer to a print whose attempt and failure disagree does not read: a failed attempt without
+/// how it failed, and an attempt that was sent, or that has no outcome yet, with a failure.
+#[test]
+fn an_answer_to_a_print_whose_attempt_and_failure_disagree_does_not_read() -> Outcome {
+    let attempt = |state, finished| JobAttempt { state, accepted: at(NOW + 200), finished };
+    let failure = JobFailure { code: JobFailure::DEVICE_FAILED.into(), message: "out of labels".into() };
+    let failed_without_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Failed, Some(at(NOW + 1_200))))?.encode();
+    let sent_with_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Sent, Some(at(NOW + 450))))?.add(&failure)?.encode();
+    let accepted_with_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Accepted, None))?.add(&failure)?.encode();
+    for disagreeing in [failed_without_a_failure, sent_with_a_failure, accepted_with_a_failure] {
+        let not_read = read_attempt(&disagreeing).err().map(|error| error.to_string());
+        assert_eq!(not_read.as_deref(), Some("a failure comes beside a failed attempt, and beside no other"));
+    }
+    Ok(())
+}
+
 /// The answer to a print the station did not take, here because the printer cannot take work now,
 /// is its refusal alone, with no attempt, since no job was recorded; the registry reads it as the
 /// refusal it passes on to the caller.
@@ -60,7 +84,7 @@ fn a_print_whose_attempt_failed_is_answered_with_the_attempt_and_its_failure() -
 fn a_print_the_station_refused_is_answered_with_the_refusal_alone() -> Outcome {
     let refusal = Refusal { code: Refusal::DEVICE_UNAVAILABLE.into(), message: "the printer's print system refuses work".into() };
     let answer = EnvelopeBuilder::new().add(&refusal)?.encode();
-    assert_eq!(read_attempt(&answer)?, Err(refusal));
+    assert_eq!(read_attempt(&answer)?, Err(ReceivedRefusal { refusal, not_understood: None }));
     Ok(())
 }
 
@@ -79,7 +103,7 @@ fn a_gateway_weigh_is_signed_whole_and_answered_with_the_reading() -> Outcome {
 
     let reading = ScaleReading { status: WeightStatus::Stable, value: WeightValue::new(1.25)?, unit: WeightUnit::Kilograms };
     let answer = EnvelopeBuilder::new().add(&reading)?.encode();
-    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD).components().read::<ScaleReading>()?, reading);
+    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD)?.components().read::<ScaleReading>()?, reading);
     Ok(())
 }
 
@@ -90,7 +114,7 @@ fn a_retirement_is_passed_on_as_its_key_signed_it_and_acknowledged() -> Outcome 
     let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW) })?);
     let request = EnvelopeBuilder::new().add_must_understand(&Retire {})?.add_must_understand(&retirement)?.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     let (_, read) = received.components().read::<(Retire, SignedRetirement)>()?;
     let retired = read.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?;
     assert_eq!(retired.must_understand(), [Retirement::ID]);
@@ -107,7 +131,7 @@ fn a_voiding_of_slips_names_the_application_and_the_moment() -> Outcome {
     let voided = SlipsVoided { before: at(NOW) };
     let request = EnvelopeBuilder::new().add_must_understand(&VoidSlips {})?.add_must_understand(&voided)?.add(&application)?.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     assert_eq!(voiding(&received, &Path::Registry(registry()))?, (voided, application));
     assert_done(&done())
 }
@@ -120,10 +144,10 @@ fn pylon_0_1_0s_print_and_weigh_take_the_same_components_without_an_authority() 
     let mut request = EnvelopeBuilder::new();
     print.add_to(&mut request)?;
     let request = request.encode();
-    print.read_back(station_reads(&request).components().read()?);
+    print.read_back(station_reads(&request)?.components().read()?);
 
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.encode();
-    assert_eq!(station_reads(&request).components().read::<(Weigh, ForDevice)>()?.1, device);
+    assert_eq!(station_reads(&request)?.components().read::<(Weigh, ForDevice)>()?.1, device);
     Ok(())
 }

@@ -17,6 +17,7 @@ use std::error::Error;
 
 use ankurah::{EntityId, Model};
 use ankurah_commons::{dimension::Dimension, property::Timestamp};
+use checks::Refused;
 use ed25519_dalek::SigningKey;
 use koinon_commons::{
     authority::{
@@ -25,7 +26,7 @@ use koinon_commons::{
         PresentedSlip, Retirement, Signed, SignedHosting, SignedRequest, SignedRetirement, SlipsVoided,
     },
     catalog::{requests::GetCatalog, PrinterFingerprint},
-    codec::{EnvelopeBuilder, Limits, Minted, MintedId, ReceivedEnvelope, SealedEnvelope},
+    codec::{DecodeError, EnvelopeBuilder, Limits, Minted, MintedId, ReceivedEnvelope, SealedEnvelope},
     component_ids::ComponentIds,
     devices::DeviceIds,
     devices::{requests::ListDevices, Device, Media, Printer, Scale, ScaleReading, Station},
@@ -261,20 +262,22 @@ fn scale_record() -> EntityId {
 
 /// `bytes` decoded as a receiver that understands `understood` decodes them, within the default
 /// limits.
-fn decoded<'a>(bytes: &'a [u8], understood: &[MintedId]) -> ReceivedEnvelope<'a> {
-    ReceivedEnvelope::decode(bytes, &Limits::default(), understood).unwrap()
+fn decoded<'a>(bytes: &'a [u8], understood: &[MintedId]) -> Result<ReceivedEnvelope<'a>, DecodeError> {
+    ReceivedEnvelope::decode(bytes, &Limits::default(), understood)
 }
 
 /// `bytes` decoded as a station decodes a request, whichever path brought it: as a reader of the
-/// envelope's own components, since a request carries no records, within the default limits.
-fn station_reads(bytes: &[u8]) -> ReceivedEnvelope<'_> {
-    ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), STATION_UNDERSTANDS).unwrap()
+/// envelope's own components, since a request carries no records, within the default limits. An
+/// envelope it cannot take is refused, with what the refusal says.
+fn station_reads(bytes: &[u8]) -> Result<ReceivedEnvelope<'_>, Refused> {
+    Ok(ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), STATION_UNDERSTANDS)?)
 }
 
 /// `bytes` decoded as a registry decodes a station's request: as a reader of the envelope's own
-/// components, within the default limits.
-fn registry_reads(bytes: &[u8]) -> ReceivedEnvelope<'_> {
-    ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), REGISTRY_UNDERSTANDS).unwrap()
+/// components, within the default limits. An envelope it cannot take is refused, with what the
+/// refusal says.
+fn registry_reads(bytes: &[u8]) -> Result<ReceivedEnvelope<'_>, Refused> {
+    Ok(ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), REGISTRY_UNDERSTANDS)?)
 }
 
 /// `body`, encoded, as the application's key signs it under the carrier `C`.
@@ -433,16 +436,24 @@ fn station_itself() -> Station {
     Station { public_key: station(), name: "Pack bench 3".into() }
 }
 
+/// A refusal as its asker reads it from a reply: the `Refusal`, and the `NotUnderstood` beside it
+/// when the side asked did not understand components the request listed as ones it must.
+#[derive(Debug, PartialEq)]
+struct ReceivedRefusal {
+    refusal: Refusal,
+    not_understood: Option<NotUnderstood>,
+}
+
 /// A reply, read as its asker reads one, which tells its kind before it reads what that kind
-/// requires: the refusal, when the reply carries `Refusal`, and otherwise the answer, which
-/// `answer` reads from it.
+/// requires: the refusal, when the reply carries `Refusal`, with what it did not understand, and
+/// otherwise the answer, which `answer` reads from it.
 fn reply<T>(
     bytes: &[u8],
     answer: impl FnOnce(&ReceivedEnvelope<'_>) -> Result<T, Box<dyn Error>>,
-) -> Result<Result<T, Refusal>, Box<dyn Error>> {
-    let received = decoded(bytes, REPLIES_UNDERSTOOD);
+) -> Result<Result<T, ReceivedRefusal>, Box<dyn Error>> {
+    let received = decoded(bytes, REPLIES_UNDERSTOOD)?;
     match received.components().read::<Option<Refusal>>()? {
-        Some(refusal) => Ok(Err(refusal)),
+        Some(refusal) => Ok(Err(ReceivedRefusal { refusal, not_understood: received.components().read()? })),
         None => Ok(Ok(answer(&received)?)),
     }
 }
@@ -457,10 +468,15 @@ fn done() -> Vec<u8> {
     EnvelopeBuilder::new().add(&Done {}).unwrap().encode()
 }
 
-/// The code of the refusal that `bytes` carry, read as the asker reads a reply.
-fn refusal_code(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
+/// The refusal that `bytes` carry, read as the asker reads a reply.
+fn refusal_of(bytes: &[u8]) -> Result<ReceivedRefusal, Box<dyn Error>> {
     match reply(bytes, |_| Ok(()))? {
-        Err(refusal) => Ok(refusal.code),
+        Err(refused) => Ok(refused),
         Ok(()) => Err("the reply is an answer, not a refusal".into()),
     }
+}
+
+/// The code of the refusal that `bytes` carry, read as the asker reads a reply.
+fn refusal_code(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
+    Ok(refusal_of(bytes)?.refusal.code)
 }

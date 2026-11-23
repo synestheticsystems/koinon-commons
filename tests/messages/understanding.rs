@@ -3,10 +3,7 @@
 //! it must understand where it reads none, or beside a request that does not act on it; and a
 //! component it need not understand, which it reads past.
 
-use koinon_commons::{
-    authority::NotOpened,
-    codec::{DecodeError, RecordBuilder},
-};
+use koinon_commons::codec::RecordBuilder;
 
 use super::{
     checks::{carried_signed_request, opened_signed_request, under_slip, Path},
@@ -64,27 +61,31 @@ fn weigh_under_a_slip_with(extra: impl FnOnce(&mut EnvelopeBuilder) -> Outcome) 
         .encode())
 }
 
-/// A slip with a restriction the station does not know: it refuses the request before reading
-/// anything of the slip, and its refusal names the restriction, so that the sender learns in one
-/// answer what this station is too old for.
+/// The refusal `refused` as its sender reads it, once the station has encoded its reply from it:
+/// the refusal's code, and the components the `NotUnderstood` beside it names, if any.
+fn as_the_sender_reads(refused: &Refused) -> Result<(String, Vec<MintedId>), Box<dyn Error>> {
+    let read = refusal_of(&refused.encode()?)?;
+    let named = read.not_understood.map_or_else(Vec::new, |not_understood| not_understood.components.ids().to_vec());
+    Ok((read.refusal.code, named))
+}
+
+/// A refusal as not understood, as its sender reads it, naming `components`.
+fn not_understood(components: &[MintedId]) -> (String, Vec<MintedId>) {
+    (Refusal::NOT_UNDERSTOOD.to_owned(), components.to_vec())
+}
+
+/// A slip with a restriction the station does not know: the station refuses the request, and its
+/// reply names the restriction, so that the sender learns in one reply what this station is too
+/// old for. The ids the codec names reach the sender: the station refuses as its reading of the
+/// slip does, encodes its reply from that refusal, and the sender reads that reply.
 #[test]
 fn a_restriction_the_station_does_not_know_is_refused_and_named() -> Outcome {
     let request = weigh_under_a_slip_with(|body| {
         body.add_must_understand(&DuringHours { opens: 8, closes: 18 })?;
         Ok(())
     })?;
-    let received = station_reads(&request);
-    let read: PresentedSlip = received.components().read()?;
-    let refused = read.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
-    let components = vec![DuringHours::ID];
-    assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: components.clone() }));
-
-    let refusal = Refusal { code: Refusal::NOT_UNDERSTOOD.into(), message: "this station does not know a restriction of the slip".into() };
-    let not_understood = NotUnderstood { components: ComponentIds::new(components)? };
-    let answer = EnvelopeBuilder::new().add(&refusal)?.add(&not_understood)?.encode();
-    let reply = decoded(&answer, REPLIES_UNDERSTOOD);
-    let (read_refusal, read_not_understood) = reply.components().read::<(Refusal, NotUnderstood)>()?;
-    assert_eq!((read_refusal, read_not_understood.components.ids()), (refusal, [DuringHours::ID].as_slice()));
+    let refused = under_slip(&station_reads(&request)?, &party(), None).err().expect("the slip is refused");
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[DuringHours::ID]));
     Ok(())
 }
 
@@ -97,11 +98,8 @@ fn a_slip_that_lists_a_component_its_reader_does_not_act_on_is_refused_naming_it
         body.add_must_understand(&DocumentFollows { length: DocumentLength::new(6)? })?;
         Ok(())
     })?;
-    let received = station_reads(&request);
-    let presented: PresentedSlip = received.components().read()?;
-    let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
-    assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![DocumentFollows::ID] }));
-    assert_eq!(under_slip(&received, &party(), None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    let refused = under_slip(&station_reads(&request)?, &party(), None).err().expect("the slip is refused");
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[DocumentFollows::ID]));
     Ok(())
 }
 
@@ -117,19 +115,16 @@ fn a_slip_that_holds_a_restriction_in_a_record_is_refused_naming_it() -> Outcome
         body.add_record(narrowed)?;
         Ok(())
     })?;
-    let received = station_reads(&request);
-    let presented: PresentedSlip = received.components().read()?;
-    let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
-    assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![AtDevices::ID] }));
-    assert_eq!(under_slip(&received, &party(), None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    let refused = under_slip(&station_reads(&request)?, &party(), None).err().expect("the slip is refused");
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[AtDevices::ID]));
     Ok(())
 }
 
 /// A component the station acts on for one kind of request, listed as one a receiver must
 /// understand beside a request that does not act on it, refuses that request as not understood,
-/// signed whole or beside a slip: here a `DocumentFollows`, which says a document follows on the
-/// stream, in a weigh or a listing, whose station reads no document and would take the
-/// document's bytes for its next request.
+/// naming it, signed whole or beside a slip: here a `DocumentFollows`, which says a document
+/// follows on the stream, in a weigh or a listing, whose station reads no document and would take
+/// the document's bytes for its next request.
 #[test]
 fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not_understood() -> Outcome {
     let follows = DocumentFollows { length: DocumentLength::new(6)? };
@@ -145,7 +140,7 @@ fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not
     for request in [weigh, listing] {
         let read = carried_signed_request(&carrying(&request)?)?;
         let refused = opened_signed_request(&read, &Path::Direct).err().expect("the request is refused");
-        assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
+        assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[DocumentFollows::ID]), "{refused}");
     }
 
     let beside_a_slip = EnvelopeBuilder::new()
@@ -154,14 +149,15 @@ fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not
         .add_must_understand(&follows)?
         .add_must_understand(&weeks_slip(&[])?)?
         .encode();
-    let refused = under_slip(&station_reads(&beside_a_slip), &party(), None).err().expect("the request is refused");
-    assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
+    let refused = under_slip(&station_reads(&beside_a_slip)?, &party(), None).err().expect("the request is refused");
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[DocumentFollows::ID]), "{refused}");
     Ok(())
 }
 
 /// A request whose own component the receiver does not know is refused by that component's id,
 /// with every other must-understand component it does not know: here a later kind of request,
-/// under a later restriction.
+/// under a later restriction. The station refuses it as it reads the envelope, before anything of
+/// it is read, and replies naming both.
 #[test]
 fn a_request_the_station_does_not_know_is_refused_with_every_component_it_does_not_know_named() -> Outcome {
     let request = EnvelopeBuilder::new()
@@ -169,10 +165,20 @@ fn a_request_the_station_does_not_know_is_refused_with_every_component_it_does_n
         .add(&ForDevice { device: printer_record().into() })?
         .add_must_understand(&DuringHours { opens: 8, closes: 18 })?
         .encode();
-    let refused = ReceivedEnvelope::decode_own_components(&request, &Limits::default(), STATION_UNDERSTANDS).unwrap_err();
+    let refused = station_reads(&request).expect_err("the request is refused");
     let mut unknown = vec![Cut::ID, DuringHours::ID];
     unknown.sort();
-    assert_eq!(refused, DecodeError::NotUnderstood { components: unknown });
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&unknown));
+    Ok(())
+}
+
+/// A registry reads a station's request as a station reads one, and refuses one it does not know
+/// in the same reply, naming it: here a station of a later build asks it to cut a roll of labels.
+#[test]
+fn a_request_the_registry_does_not_know_is_refused_naming_it() -> Outcome {
+    let request = EnvelopeBuilder::new().add_must_understand(&Cut {})?.encode();
+    let refused = registry_reads(&request).expect_err("the request is refused");
+    assert_eq!(as_the_sender_reads(&refused)?, not_understood(&[Cut::ID]));
     Ok(())
 }
 
@@ -186,7 +192,7 @@ fn a_component_the_station_need_not_understand_is_read_past() -> Outcome {
     request.add(&PackingNote { note: "fragile".into() })?;
     let request = request.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     assert!(received.components().ids().any(|id| id == PackingNote::ID));
     print.read_back(received.components().read()?);
     Ok(())

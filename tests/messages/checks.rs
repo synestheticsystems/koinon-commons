@@ -18,24 +18,40 @@ use super::{
 };
 
 /// Why a station or a registry refuses a request: the code of the `Refusal` it answers with, and
-/// why, for a test that expected another outcome to say.
+/// why, which the refusal's words say; and for a refusal as `not_understood`, the components the
+/// request listed as ones a receiver must understand that the receiver does not understand where
+/// they stand, by their ids, which a `NotUnderstood` beside the refusal names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Refused {
     pub code: &'static str,
     pub why: String,
+    /// Empty but for a refusal as `not_understood`.
+    pub not_understood: Vec<MintedId>,
 }
 
 impl Refused {
     pub fn bad_request(why: impl fmt::Display) -> Self {
-        Refused { code: Refusal::BAD_REQUEST, why: why.to_string() }
+        Refused { code: Refusal::BAD_REQUEST, why: why.to_string(), not_understood: Vec::new() }
     }
 
     pub fn not_authorized(why: impl fmt::Display) -> Self {
-        Refused { code: Refusal::NOT_AUTHORIZED, why: why.to_string() }
+        Refused { code: Refusal::NOT_AUTHORIZED, why: why.to_string(), not_understood: Vec::new() }
     }
 
-    pub fn not_understood(why: impl fmt::Display) -> Self {
-        Refused { code: Refusal::NOT_UNDERSTOOD, why: why.to_string() }
+    pub fn not_understood(components: Vec<MintedId>, why: impl fmt::Display) -> Self {
+        Refused { code: Refusal::NOT_UNDERSTOOD, why: why.to_string(), not_understood: components }
+    }
+
+    /// The reply that refuses the request, as the receiver encodes it: the `Refusal`, and beside a
+    /// refusal as `not_understood` the `NotUnderstood` that names each component it did not
+    /// understand, so that the sender learns them all in one reply.
+    pub fn encode(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+        let mut reply = EnvelopeBuilder::new();
+        reply.add(&Refusal { code: self.code.into(), message: self.why.clone() })?;
+        if !self.not_understood.is_empty() {
+            reply.add(&NotUnderstood { components: ComponentIds::new(self.not_understood.clone())? })?;
+        }
+        Ok(reply.encode())
     }
 }
 
@@ -55,17 +71,35 @@ impl From<ReadError> for Refused {
     }
 }
 
+/// An envelope that lists as ones a receiver must understand components this receiver does not
+/// understand where they stand is not understood, naming them; one that does not decode cannot be
+/// read.
+impl From<DecodeError> for Refused {
+    fn from(error: DecodeError) -> Self {
+        match error {
+            DecodeError::NotUnderstood { components } => {
+                let why = format!("the envelope lists components this receiver does not understand: {}", ids_text(&components));
+                Refused::not_understood(components, why)
+            }
+            error => Refused::bad_request(error),
+        }
+    }
+}
+
 /// A carrier whose signature does not verify carries no authority the station honours; one whose
-/// envelope lists a component its reader does not understand is not understood; and one whose
-/// envelope does not decode cannot be read.
+/// envelope does not read is refused as any envelope that does not read is.
 impl From<NotOpened> for Refused {
     fn from(error: NotOpened) -> Self {
         match error {
             NotOpened::BadSignature(error) => Refused::not_authorized(error),
-            NotOpened::Unreadable(error @ DecodeError::NotUnderstood { .. }) => Refused::not_understood(error),
-            NotOpened::Unreadable(error) => Refused::bad_request(error),
+            NotOpened::Unreadable(error) => Refused::from(error),
         }
     }
+}
+
+/// The ids of `components`, as a refusal's words name them.
+fn ids_text(components: &[MintedId]) -> String {
+    components.iter().map(MintedId::to_string).collect::<Vec<_>>().join(", ")
 }
 
 /// Whether `outcome` is a refusal as `not_authorized`.
@@ -99,17 +133,15 @@ pub fn requested(received: &ReceivedEnvelope<'_>, authority: &[MintedId]) -> Res
         [] => return Err(Refused::bad_request("the request asks nothing this station takes")),
         _ => return Err(Refused::bad_request("the request asks more than one thing")),
     };
-    let dropped: Vec<String> = received
+    let dropped: Vec<MintedId> = received
         .must_understand()
         .iter()
-        .filter(|listed| **listed != request && !acted_on.contains(listed) && !authority.contains(listed))
-        .map(MintedId::to_string)
+        .copied()
+        .filter(|component| *component != request && !acted_on.contains(component) && !authority.contains(component))
         .collect();
     if !dropped.is_empty() {
-        return Err(Refused::not_understood(format!(
-            "the request lists {} as one it must understand, which it does not act on",
-            dropped.join(", ")
-        )));
+        let why = format!("the request lists {} as ones it must understand, which it does not act on", ids_text(&dropped));
+        return Err(Refused::not_understood(dropped, why));
     }
     Ok(request)
 }
@@ -117,7 +149,7 @@ pub fn requested(received: &ReceivedEnvelope<'_>, authority: &[MintedId]) -> Res
 /// The request signed whole that an envelope carries, as a station takes it from the envelope
 /// around it: the carrier alone listed there as a component a receiver must understand.
 pub fn carried_signed_request(bytes: &[u8]) -> Result<SignedRequest, Refused> {
-    let received = station_reads(bytes);
+    let received = station_reads(bytes)?;
     if received.must_understand() != [SignedRequest::ID] {
         return Err(Refused::bad_request("the envelope around a signed request lists more than its carrier"));
     }

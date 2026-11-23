@@ -105,7 +105,7 @@ fn a_print_without_the_device_it_is_for_is_refused_naming_the_missing_component(
         .add(&print.print_job)?
         .add_must_understand(&print.follows)?
         .encode();
-    let refused = station_reads(&request).components().read::<(Print, JobId, ForDevice, PrintJob, DocumentFollows)>().unwrap_err();
+    let refused = station_reads(&request)?.components().read::<(Print, JobId, ForDevice, PrintJob, DocumentFollows)>().unwrap_err();
     assert!(matches!(refused, ReadError::MissingComponent { component } if component == ForDevice::ID), "{refused}");
     Ok(())
 }
@@ -117,7 +117,7 @@ fn a_print_without_the_device_it_is_for_is_refused_naming_the_missing_component(
 fn a_print_job_that_lacks_a_property_or_breaks_its_types_rule_is_refused_naming_it() -> Outcome {
     let read = |print_job: &LoosePrintJob| -> Result<PrintJob, ReadError> {
         let request = EnvelopeBuilder::new().add(print_job).unwrap().encode();
-        station_reads(&request).components().read::<PrintJob>()
+        station_reads(&request).expect("a station takes an envelope of a print job alone").components().read::<PrintJob>()
     };
     let hash = DocumentHash::from_bytes([0xab; 32]).text();
     let loose = |copies, document_hash| LoosePrintJob { document_format: "application/x-zpl2".into(), copies, document_hash };
@@ -148,7 +148,7 @@ fn a_print_job_that_lacks_a_property_or_breaks_its_types_rule_is_refused_naming_
 #[test]
 fn a_first_scope_with_a_blank_name_is_refused_naming_the_property() -> Outcome {
     let request = EnvelopeBuilder::new().add(&LooseFirstScope { name: " \t".into() })?.encode();
-    let refused = registry_reads(&request).components().read::<FirstScope>().unwrap_err();
+    let refused = registry_reads(&request)?.components().read::<FirstScope>().unwrap_err();
     let name = property::<FirstScope>("name");
     assert!(
         matches!(&refused, ReadError::MalformedValue { component, property, problem: ValueProblem::Refused(error) }
@@ -185,7 +185,7 @@ fn an_endorsement_of_an_address_that_is_no_host_name_is_refused_naming_the_prope
 fn a_request_that_asks_two_things_is_refused_as_a_bad_request() -> Outcome {
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add_must_understand(&ListDevices {})?.add(&device)?.encode();
-    let refused = requested(&station_reads(&request), &[]).unwrap_err();
+    let refused = requested(&station_reads(&request)?, &[]).unwrap_err();
     assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
     Ok(())
 }
@@ -201,7 +201,7 @@ fn a_registration_in_a_listed_scope_and_a_first_scope_at_once_is_refused_as_a_ba
         .add(&FirstScope { name: Name::new("Acme")? })?
         .add_must_understand(&ForApplication { key: key_of(&application()) })?
         .encode();
-    let refused = place(&registry_reads(&request).components()).unwrap_err();
+    let refused = place(&registry_reads(&request)?.components()).unwrap_err();
     assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
     Ok(())
 }

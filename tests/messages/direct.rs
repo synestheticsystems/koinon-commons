@@ -58,52 +58,61 @@ fn listing(approval: &Approval, slip: Option<&Slip>) -> Result<Vec<u8>, Box<dyn 
     devices_answer(Some(&station_itself()), |device, kind| reaches(approval, slip, device, kind))
 }
 
-/// A device as an answer names it: its record's entity, whether it prints, whether its stock is
-/// known, and whether it weighs.
-type Listed = (Option<EntityId>, bool, bool, bool);
+/// A device as an answer names it: its record's entity id, by which a party names it in a job,
+/// whether it prints, whether its stock is known, and whether it weighs.
+type Listed = (EntityId, bool, bool, bool);
 
 /// What an answer that names devices says, as the party reads it: the station's own record, when
-/// the answer carries it, and each device it names, in the station's order.
+/// the answer carries it; the id of that record, which every device names, when the answer carries
+/// the record or names a device; and each device it names, in the station's order.
 #[derive(Debug, PartialEq)]
 struct Named {
     station: Option<Station>,
+    station_record: Option<EntityId>,
     devices: Vec<Listed>,
 }
 
 /// What an answer to a listing, or to a claim of an invitation, names, read as the party reads it:
 /// the record that carries `Station` is the station's own, wherever it stands, and every other
-/// names a device, which names the station's record. A refusal reads as the refusal.
-fn named(answer: &[u8]) -> Result<Result<Named, Refusal>, Box<dyn Error>> {
+/// names a device. Every record stands under its entity's id, which is how the party names a
+/// device in its jobs. The station's record is the one its `Station` record stands under, or, in an
+/// answer without that record, the one the devices name, and every device names that same record,
+/// so that an answer naming the devices of two stations does not read. A refusal reads as the
+/// refusal.
+fn named(answer: &[u8]) -> Result<Result<Named, ReceivedRefusal>, Box<dyn Error>> {
     reply(answer, |received| {
-        let mut named = Named { station: None, devices: Vec::new() };
+        let mut station = None;
+        let mut devices = Vec::new();
         for record in received.records() {
-            if let Some(station) = record.components().read::<Option<Station>>()? {
-                if record.entity() != Some(station_record()) || named.station.replace(station).is_some() {
-                    return Err("the station's own record comes once, under its id".into());
+            let entity = record.entity().ok_or("every record of the answer stands under its entity's id")?;
+            if let Some(own) = record.components().read::<Option<Station>>()? {
+                if station.replace((entity, own)).is_some() {
+                    return Err("the station's own record comes once".into());
                 }
                 continue;
             }
             let (device, printer, media, scale) = record.components().read::<(Device, Option<Printer>, Option<Media>, Option<Scale>)>()?;
-            if device.station.id() != station_record() {
-                return Err("a device names another station's record".into());
-            }
-            named.devices.push((record.entity(), printer.is_some(), media.is_some(), scale.is_some()));
+            devices.push((device.station.id(), (entity, printer.is_some(), media.is_some(), scale.is_some())));
         }
-        Ok(named)
+        let station_record = station.as_ref().map(|&(entity, _)| entity).or_else(|| devices.first().map(|&(named, _)| named));
+        if devices.iter().any(|&(named, _)| Some(named) != station_record) {
+            return Err("a device names another record than the station's own".into());
+        }
+        Ok(Named { station: station.map(|(_, own)| own), station_record, devices: devices.into_iter().map(|(_, listed)| listed).collect() })
     })
 }
 
 /// The devices the answer to a listing names, read as the party reads it, which may carry the
 /// station's own record or not.
 fn listed(answer: &[u8]) -> Result<Vec<Listed>, Box<dyn Error>> {
-    Ok(named(answer)?.map_err(|refusal| format!("the listing was refused as {}", refusal.code))?.devices)
+    Ok(named(answer)?.map_err(|refused| format!("the listing was refused as {}", refused.refusal.code))?.devices)
 }
 
 /// What the answer to a claim of an invitation says, read as the claiming computer reads it: the
 /// station's own record, whose name the computer shows its person, and the devices the invitation
 /// offers. An answer without the station's record is no answer to a claim.
 fn claimed(answer: &[u8]) -> Result<(Station, Vec<Listed>), Box<dyn Error>> {
-    let named = named(answer)?.map_err(|refusal| format!("the claim was refused as {}", refusal.code))?;
+    let named = named(answer)?.map_err(|refused| format!("the claim was refused as {}", refused.refusal.code))?;
     Ok((named.station.ok_or("the answer to a claim carries the station's own record")?, named.devices))
 }
 
@@ -114,10 +123,10 @@ fn a_listing_under_a_slip_is_answered_with_a_record_for_each_device_it_covers() 
     let presented = weeks_slip(&[printer_record()])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     received.components().read::<ListDevices>()?;
     let (slip, approval) = under_slip(&received, &party(), None)?;
-    assert_eq!(listed(&listing(&approval, Some(&slip))?)?, [(Some(printer_record()), true, true, false)]);
+    assert_eq!(listed(&listing(&approval, Some(&slip))?)?, [(printer_record(), true, true, false)]);
     Ok(())
 }
 
@@ -127,8 +136,8 @@ fn a_listing_under_a_slip_for_prints_alone_names_the_printers_alone() -> Outcome
     let presented = presented_slip(NOW - MINUTE, NOW + 60 * MINUTE, &[Print::ID], &[])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let (slip, approval) = under_slip(&station_reads(&request), &party(), None)?;
-    assert_eq!(listed(&listing(&approval, Some(&slip))?)?, [(Some(printer_record()), true, true, false)]);
+    let (slip, approval) = under_slip(&station_reads(&request)?, &party(), None)?;
+    assert_eq!(listed(&listing(&approval, Some(&slip))?)?, [(printer_record(), true, true, false)]);
     Ok(())
 }
 
@@ -139,9 +148,9 @@ fn a_listing_under_a_slip_for_devices_the_station_does_not_offer_is_refused() ->
     let presented = weeks_slip(&[entity(99)])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let (slip, approval) = under_slip(&station_reads(&request), &party(), None)?;
+    let (slip, approval) = under_slip(&station_reads(&request)?, &party(), None)?;
     let answer = listing(&approval, Some(&slip))?;
-    assert_eq!(named(&answer)?.map_err(|refusal| refusal.code), Err(Refusal::NOT_AUTHORIZED.to_owned()));
+    assert_eq!(named(&answer)?.map_err(|refused| refused.refusal.code), Err(Refusal::NOT_AUTHORIZED.to_owned()));
     Ok(())
 }
 
@@ -151,8 +160,45 @@ fn a_listing_under_a_slip_for_devices_the_station_does_not_offer_is_refused() ->
 fn a_listing_without_the_stations_own_record_names_the_devices_all_the_same() -> Outcome {
     let approval = records::approval(&key_of(&application())).ok_or("the station shares with the application")?;
     let answer = devices_answer(None, |device, kind| reaches(&approval, None, device, kind))?;
-    let devices = vec![(Some(printer_record()), true, true, false), (Some(scale_record()), false, false, true)];
-    assert_eq!(named(&answer)?, Ok(Named { station: None, devices }));
+    let devices = vec![(printer_record(), true, true, false), (scale_record(), false, false, true)];
+    assert_eq!(named(&answer)?, Ok(Named { station: None, station_record: Some(station_record()), devices }));
+    Ok(())
+}
+
+/// An answer whose records a party could not use does not read as naming devices: a device under
+/// no entity id, which the party could not name in a job; a device that names another record than
+/// the one the station's own record stands under, alone or beside one that names it; and, with no
+/// station record to say which is the station's, two devices that name two stations' records.
+#[test]
+fn an_answer_with_a_device_under_no_id_or_the_devices_of_two_stations_does_not_read() -> Outcome {
+    let (device, printer, media) = printer();
+    let another_stations = Device { station: entity(16).into(), system_name: "Zebra_GK420d".into(), name: "Dock 2 labels".into() };
+    // An answer of printers, each under the entity id given, after the station's own record when
+    // `station` says so.
+    let answer = |station: bool, printers: Vec<(Option<EntityId>, &Device)>| -> Result<Vec<u8>, Box<dyn Error>> {
+        let mut answer = EnvelopeBuilder::new();
+        if station {
+            let mut own = RecordBuilder::new(Some(station_record()));
+            own.add(&station_itself())?;
+            answer.add_record(own)?;
+        }
+        for (entity, device) in printers {
+            let mut record = RecordBuilder::new(entity);
+            record.add(device)?.add(&printer)?.add(&media)?;
+            answer.add_record(record)?;
+        }
+        Ok(answer.encode())
+    };
+    let under_no_id = answer(true, vec![(None, &device)])?;
+    let another_stations_alone = answer(true, vec![(Some(entity(17)), &another_stations)])?;
+    let beside_another_station = answer(true, vec![(Some(printer_record()), &device), (Some(entity(17)), &another_stations)])?;
+    let of_two_stations = answer(false, vec![(Some(printer_record()), &device), (Some(entity(17)), &another_stations)])?;
+    let not_read = |answer: &[u8]| named(answer).err().map(|error| error.to_string());
+    assert_eq!(not_read(&under_no_id).as_deref(), Some("every record of the answer stands under its entity's id"));
+    for two_stations in [another_stations_alone, beside_another_station, of_two_stations] {
+        assert_eq!(not_read(&two_stations).as_deref(), Some("a device names another record than the station's own"));
+    }
+    assert!(named(&answer(false, vec![(Some(printer_record()), &device)])?)?.is_ok(), "one station's device reads");
     Ok(())
 }
 
@@ -169,7 +215,7 @@ fn a_signed_listing_is_answered_with_every_device_the_station_offers() -> Outcom
     body.components().read::<ListDevices>()?;
 
     let answer = listing(&approval, None)?;
-    assert_eq!(listed(&answer)?, [(Some(printer_record()), true, true, false), (Some(scale_record()), false, false, true)]);
+    assert_eq!(listed(&answer)?, [(printer_record(), true, true, false), (scale_record(), false, false, true)]);
     Ok(())
 }
 
@@ -186,7 +232,7 @@ fn a_paired_computers_signed_listing_names_only_the_devices_its_person_offered_i
     body.components().read::<ListDevices>()?;
 
     let answer = listing(&approval, None)?;
-    assert_eq!(listed(&answer)?, [(Some(printer_record()), true, true, false)]);
+    assert_eq!(listed(&answer)?, [(printer_record(), true, true, false)]);
     Ok(())
 }
 
@@ -221,7 +267,7 @@ fn a_print_under_a_slip_carries_the_slip_beside_the_request() -> Outcome {
     request.add_must_understand(&presented)?;
     let request = request.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     let (slip, approval) = under_slip(&received, &party(), None)?;
     let read = received.components().read::<ReadPrint>()?;
     assert!(reaches(&approval, Some(&slip), read.2.device.id(), Print::ID));
@@ -229,7 +275,7 @@ fn a_print_under_a_slip_carries_the_slip_beside_the_request() -> Outcome {
 
     let accepted = JobAttempt { state: AttemptState::Accepted, accepted: at(NOW + 100), finished: None };
     let answer = EnvelopeBuilder::new().add(&accepted)?.encode();
-    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD).components().read::<JobAttempt>()?, accepted);
+    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD)?.components().read::<JobAttempt>()?, accepted);
     Ok(())
 }
 
@@ -240,7 +286,7 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.add_must_understand(&presented)?.encode();
 
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     let (slip, approval) = under_slip(&received, &party(), None)?;
     assert!(slip.devices.is_none(), "the slip covers every device at the station");
     assert_eq!(received.components().read::<(Weigh, ForDevice)>()?.1, device);
@@ -248,7 +294,7 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
 
     let reading = ScaleReading { status: WeightStatus::BelowZero, value: WeightValue::new(-0.5)?, unit: WeightUnit::Pounds };
     let answer = EnvelopeBuilder::new().add(&reading)?.encode();
-    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD).components().read::<ScaleReading>()?, reading);
+    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD)?.components().read::<ScaleReading>()?, reading);
     Ok(())
 }
 
@@ -258,7 +304,7 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
 fn a_retirement_handed_over_directly_is_acknowledged_whoever_hands_it_over() -> Outcome {
     let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW) })?);
     let request = EnvelopeBuilder::new().add_must_understand(&Retire {})?.add_must_understand(&retirement)?.encode();
-    let (_, read) = station_reads(&request).components().read::<(Retire, SignedRetirement)>()?;
+    let (_, read) = station_reads(&request)?.components().read::<(Retire, SignedRetirement)>()?;
     assert_eq!(read, retirement);
     assert_eq!(read.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?.components().read::<Retirement>()?, Retirement { retired: at(NOW) });
     assert_done(&done())
@@ -282,13 +328,13 @@ fn claim_of(secret: &InvitationSecret) -> Result<Vec<u8>, Box<dyn Error>> {
 #[test]
 fn a_claim_of_an_invitation_is_answered_with_the_station_and_the_devices_it_offers() -> Outcome {
     let request = claim_of(&invitation_secret())?;
-    let received = station_reads(&request);
+    let received = station_reads(&request)?;
     let (_, claim) = received.components().read::<(ClaimInvitation, InvitationClaim)>()?;
     assert_eq!((claim.secret, claim.name), (invitation_secret(), Name::new("Front desk Mac")?));
 
     let approval = Invitations::offering_the_printer(&invitation_secret()).claim(&received, &claiming_computer())?;
     let answer = devices_answer(Some(&station_itself()), |device, kind| reaches(&approval, None, device, kind))?;
-    assert_eq!(claimed(&answer)?, (station_itself(), vec![(Some(printer_record()), true, true, false)]));
+    assert_eq!(claimed(&answer)?, (station_itself(), vec![(printer_record(), true, true, false)]));
     Ok(())
 }
 
@@ -298,11 +344,11 @@ fn a_claim_of_an_invitation_is_answered_with_the_station_and_the_devices_it_offe
 fn an_invitation_is_claimed_once_and_only_with_its_secret() -> Outcome {
     let mut invitations = Invitations::offering_the_printer(&invitation_secret());
     let guessed = claim_of(&InvitationSecret::from_bytes([0x5d; 16]))?;
-    assert!(not_authorized(invitations.claim(&station_reads(&guessed), &claiming_computer())));
+    assert!(not_authorized(invitations.claim(&station_reads(&guessed)?, &claiming_computer())));
 
     let request = claim_of(&invitation_secret())?;
-    invitations.claim(&station_reads(&request), &claiming_computer())?;
-    assert!(not_authorized(invitations.claim(&station_reads(&request), &key(13))));
+    invitations.claim(&station_reads(&request)?, &claiming_computer())?;
+    assert!(not_authorized(invitations.claim(&station_reads(&request)?, &key(13))));
     Ok(())
 }
 
@@ -313,10 +359,10 @@ fn an_invitation_is_claimed_once_and_only_with_its_secret() -> Outcome {
 fn a_claim_refused_for_its_key_leaves_the_invitation_unclaimed() -> Outcome {
     let mut invitations = Invitations::offering_the_printer(&invitation_secret());
     let request = claim_of(&invitation_secret())?;
-    assert!(not_authorized(invitations.claim(&station_reads(&request), &retired_application())));
-    assert!(not_authorized(invitations.claim(&station_reads(&request), &key_of(&paired_computer()))));
+    assert!(not_authorized(invitations.claim(&station_reads(&request)?, &retired_application())));
+    assert!(not_authorized(invitations.claim(&station_reads(&request)?, &key_of(&paired_computer()))));
 
-    let approval = invitations.claim(&station_reads(&request), &claiming_computer())?;
+    let approval = invitations.claim(&station_reads(&request)?, &claiming_computer())?;
     assert!(reaches(&approval, None, printer_record(), Print::ID));
     assert!(!reaches(&approval, None, scale_record(), Weigh::ID));
     Ok(())
@@ -330,6 +376,6 @@ fn an_answer_to_a_claim_without_the_stations_own_record_does_not_read_as_one() -
     let approval = records::approval(&key_of(&paired_computer())).ok_or("the station shares with the computer")?;
     let answer = devices_answer(None, |device, kind| reaches(&approval, None, device, kind))?;
     assert!(claimed(&answer).is_err());
-    assert_eq!(listed(&answer)?, [(Some(printer_record()), true, true, false)]);
+    assert_eq!(listed(&answer)?, [(printer_record(), true, true, false)]);
     Ok(())
 }

@@ -55,7 +55,7 @@ fn hello_answer(answer: &[u8]) -> Result<HelloAnswer, Box<dyn Error>> {
         }
         Ok(hello)
     })?;
-    Ok(read.map_err(|refusal| format!("the hello was refused as {}", refusal.code))?)
+    Ok(read.map_err(|refused| format!("the hello was refused as {}", refused.refusal.code))?)
 }
 
 /// A station that has just connected learns which registrations the registry keeps for it, each
@@ -65,7 +65,7 @@ fn hello_answer(answer: &[u8]) -> Result<HelloAnswer, Box<dyn Error>> {
 #[test]
 fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&Hello {})?.encode();
-    let received = registry_reads(&request);
+    let received = registry_reads(&request)?;
     assert_eq!(received.must_understand(), [Hello::ID]);
     received.components().read::<Hello>()?;
 
@@ -102,7 +102,7 @@ fn a_sign_in_is_answered_with_the_person_and_the_scopes_they_may_register_in() -
         nonce_seed: "kV3pQ8sN1xR6tB0yW4zH7mC2fJ9dL5gA8eU3oI1nT6c".into(),
     };
     let request = EnvelopeBuilder::new().add_must_understand(&SignIn {})?.add(&sign_in)?.encode();
-    let received = registry_reads(&request);
+    let received = registry_reads(&request)?;
     assert_eq!(received.components().read::<(SignIn, IdTokenSignIn)>()?.1, sign_in);
 
     let person = SignedInPerson { name: Some("Ada Lovelace".into()), email: None };
@@ -151,7 +151,7 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
         .add_must_understand(&for_application())?
         .encode();
 
-    let received = registry_reads(&listed);
+    let received = registry_reads(&listed)?;
     let mut must_understand = vec![Register::ID, ForApplication::ID];
     must_understand.sort();
     assert_eq!(received.must_understand(), must_understand);
@@ -161,7 +161,7 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
         (assignment.clone(), Place::Listed(placement), for_application())
     );
 
-    let received = registry_reads(&in_a_first_scope);
+    let received = registry_reads(&in_a_first_scope)?;
     let (_, read_assignment, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
     assert_eq!((read_assignment, place(&received.components())?, application), (assignment, Place::First(first), for_application()));
     Ok(())
@@ -176,16 +176,18 @@ struct Asked {
     place: Place,
 }
 
-/// A grant a registry wrote for the station's registration for the application: the registration
-/// it answered with, what was asked, and whether the grant is still open.
+/// A grant a registry wrote for a station's registration for the application: the key of the
+/// station it is for, as the grant's `NodeGrant` holds it, the registration it answered with, what
+/// was asked, and whether the grant is still open.
 struct Written {
+    station: PublicKey,
     registration: Registration,
     asked: Asked,
     open: bool,
 }
 
-/// What a registry keeps of the station's registrations for the application, each under the grant
-/// it wrote for it, with the clock that gives each grant its moment.
+/// What a registry keeps of stations' registrations for the application, each under the grant it
+/// wrote for it, with the clock that gives each grant its moment.
 #[derive(Default)]
 struct Grants {
     written: Vec<Written>,
@@ -193,20 +195,21 @@ struct Grants {
 }
 
 impl Grants {
-    /// Answers `request`, a registration of the station for the application by `person`, whose
-    /// sign-in the registry accepted on the connection, when the registry's clock reads `now`: a
-    /// repeat of the registration that holds the station registered, by the same person, for the
-    /// same station record and in the same place, with its `Registration` again; any other while
-    /// that registration is open with a refusal as `not_authorized`; and one while none is with a
-    /// `Registration` under a grant written anew.
-    fn register(&mut self, request: &[u8], person: &'static str, now: i64) -> Result<Vec<u8>, Box<dyn Error>> {
-        let received = registry_reads(request);
+    /// Answers `request`, a registration for the application of the station whose key the
+    /// connection proves, `connection`, by `person`, whose sign-in the registry accepted on that
+    /// connection, when the registry's clock reads `now`: a repeat of the registration that holds
+    /// the station registered, by the same person, for the same station record and in the same
+    /// place, with its `Registration` again; any other while that registration is open with a
+    /// refusal as `not_authorized`; and one while none is open for the station with a
+    /// `Registration` under a grant written anew for its key.
+    fn register(&mut self, request: &[u8], person: &'static str, connection: &PublicKey, now: i64) -> Result<Vec<u8>, Box<dyn Error>> {
+        let received = registry_reads(request)?;
         let (_, station, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
         if application != for_application() {
             return Err("the registry hosts no other application".into());
         }
         let asked = Asked { person, station, place: place(&received.components())? };
-        let registration = match self.written.iter().find(|written| written.open) {
+        let registration = match self.written.iter().find(|written| written.open && written.station == *connection) {
             Some(open) if open.asked == asked => open.registration.clone(),
             Some(_) => {
                 let refusal =
@@ -216,21 +219,23 @@ impl Grants {
             None => {
                 let grant = 40 + u8::try_from(self.written.len())?;
                 let anew = registration(grant, self.clock.moment(now));
-                self.written.push(Written { registration: anew.clone(), asked, open: true });
+                self.written.push(Written { station: *connection, registration: anew.clone(), asked, open: true });
                 anew
             }
         };
         Ok(EnvelopeBuilder::new().add(&for_application())?.add_must_understand(&registration)?.encode())
     }
 
-    /// Ends the registration a notice that the station no longer shares names, by its grant alone,
-    /// if the grant is still open and is the station's for the application, so that a notice under
-    /// an old grant leaves a newer one open.
-    fn stop_sharing(&mut self, notice: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
-        let received = registry_reads(notice);
+    /// Ends the registration a notice that a station no longer shares names, by its grant alone,
+    /// if the grant is still open and is for the application and for the station whose key the
+    /// connection that brought the notice proves, `connection`: so that a notice under an old grant
+    /// leaves a newer one open, and one from another station, which may know the grant's id, leaves
+    /// the grant open. It is answered with `Done` either way.
+    fn stop_sharing(&mut self, notice: &[u8], connection: &PublicKey) -> Result<Vec<u8>, Box<dyn Error>> {
+        let received = registry_reads(notice)?;
         let (_, application, named) = received.components().read::<(StopSharing, ForApplication, ForGrant)>()?;
         for written in &mut self.written {
-            if application == for_application() && written.registration.grant == named.grant {
+            if application == for_application() && written.station == *connection && written.registration.grant == named.grant {
                 written.open = false;
             }
         }
@@ -242,22 +247,38 @@ impl Grants {
     }
 }
 
-/// A registration of the station for the application in the sub-scope whose record is
-/// `sub_scope`, under the scope the sign-in's answer listed.
-fn registering_in(sub_scope: u8) -> Result<Vec<u8>, Box<dyn Error>> {
+/// The key of a second station, registered with the same registry for the same application.
+fn other_station() -> PublicKey {
+    key(10)
+}
+
+/// The second station's own record.
+fn other_station_record() -> EntityId {
+    entity(15)
+}
+
+/// A registration of the station whose record is `station`, for the application, in the sub-scope
+/// whose record is `sub_scope`, under the scope the sign-in's answer listed.
+fn registering(station: EntityId, sub_scope: u8) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(EnvelopeBuilder::new()
         .add_must_understand(&Register {})?
-        .add(&ScopeAssignment { station: station_record().into() })?
+        .add(&ScopeAssignment { station: station.into() })?
         .add(&Placement { scope: entity(20).into(), sub_scope: Some(entity(sub_scope).into()) })?
         .add_must_understand(&for_application())?
         .encode())
+}
+
+/// A registration of the station for the application in the sub-scope whose record is
+/// `sub_scope`.
+fn registering_in(sub_scope: u8) -> Result<Vec<u8>, Box<dyn Error>> {
+    registering(station_record(), sub_scope)
 }
 
 /// The registration a station keeps from the registry's answer to its `Register`, read as the
 /// station reads a reply: an answer that is a refusal registers nothing.
 fn kept(answer: &[u8]) -> Result<Registration, Box<dyn Error>> {
     let read = reply(answer, |answer| Ok(answer.components().read::<(ForApplication, Registration)>()?))?;
-    let (application, registration) = read.map_err(|refusal| format!("the registration was refused as {}", refusal.code))?;
+    let (application, registration) = read.map_err(|refused| format!("the registration was refused as {}", refused.refusal.code))?;
     if application != for_application() {
         return Err("the answer names another application".into());
     }
@@ -282,11 +303,11 @@ fn notice(registration: &Registration) -> Result<Vec<u8>, Box<dyn Error>> {
 fn a_repeated_registration_is_answered_with_the_same_registration_and_any_other_is_refused() -> Outcome {
     let mut grants = Grants::default();
     let request = registering_in(21)?;
-    let first = kept(&grants.register(&request, "the person who said yes", NOW - 10 * MINUTE)?)?;
-    assert_eq!(kept(&grants.register(&request, "the person who said yes", NOW - 9 * MINUTE)?)?, first);
-    let elsewhere = grants.register(&registering_in(22)?, "the person who said yes", NOW - 8 * MINUTE)?;
+    let first = kept(&grants.register(&request, "the person who said yes", &station(), NOW - 10 * MINUTE)?)?;
+    assert_eq!(kept(&grants.register(&request, "the person who said yes", &station(), NOW - 9 * MINUTE)?)?, first);
+    let elsewhere = grants.register(&registering_in(22)?, "the person who said yes", &station(), NOW - 8 * MINUTE)?;
     assert_eq!(refusal_code(&elsewhere)?, Refusal::NOT_AUTHORIZED);
-    let by_someone_else = grants.register(&request, "another person", NOW - 8 * MINUTE)?;
+    let by_someone_else = grants.register(&request, "another person", &station(), NOW - 8 * MINUTE)?;
     assert_eq!(refusal_code(&by_someone_else)?, Refusal::NOT_AUTHORIZED);
     assert_eq!(grants.open(), [first]);
     Ok(())
@@ -299,13 +320,13 @@ fn a_repeated_registration_is_answered_with_the_same_registration_and_any_other_
 fn a_notice_that_arrives_late_ends_its_own_registration_and_leaves_a_newer_one_open() -> Outcome {
     let mut grants = Grants::default();
     let request = registering_in(21)?;
-    let first = kept(&grants.register(&request, "the person who said yes", NOW - 10 * MINUTE)?)?;
+    let first = kept(&grants.register(&request, "the person who said yes", &station(), NOW - 10 * MINUTE)?)?;
     let removal = notice(&first)?;
-    assert_done(&grants.stop_sharing(&removal)?)?;
-    let second = kept(&grants.register(&request, "the person who said yes", NOW - 5 * MINUTE)?)?;
+    assert_done(&grants.stop_sharing(&removal, &station())?)?;
+    let second = kept(&grants.register(&request, "the person who said yes", &station(), NOW - 5 * MINUTE)?)?;
     assert_ne!(first.grant, second.grant, "a registration after a removal is under a new grant");
 
-    assert_done(&grants.stop_sharing(&removal)?)?;
+    assert_done(&grants.stop_sharing(&removal, &station())?)?;
     assert_eq!(grants.open(), std::slice::from_ref(&second));
 
     let mut hello = EnvelopeBuilder::new();
@@ -313,6 +334,26 @@ fn a_notice_that_arrives_late_ends_its_own_registration_and_leaves_a_newer_one_o
         hello.add_record(registered(&open)?)?;
     }
     assert_eq!(hello_answer(&hello.encode())?.registrations, [(second, for_application())]);
+    Ok(())
+}
+
+/// Two stations are registered for the same application, each under a grant for its own key. A
+/// notice that names the first station's grant ends that registration only when it comes down the
+/// first station's connection: from the second station, which may have learnt the grant's id, it
+/// is answered with `Done` and leaves both grants open.
+#[test]
+fn a_notice_ends_a_registration_only_down_the_connection_of_the_station_its_grant_is_for() -> Outcome {
+    let mut grants = Grants::default();
+    let first = kept(&grants.register(&registering_in(21)?, "the person who said yes", &station(), NOW - 10 * MINUTE)?)?;
+    let other = registering(other_station_record(), 21)?;
+    let second = kept(&grants.register(&other, "the person who said yes", &other_station(), NOW - 9 * MINUTE)?)?;
+    assert_ne!(first.grant, second.grant, "each station is registered under a grant of its own");
+
+    let removal = notice(&first)?;
+    assert_done(&grants.stop_sharing(&removal, &other_station())?)?;
+    assert_eq!(grants.open(), [first.clone(), second.clone()]);
+    assert_done(&grants.stop_sharing(&removal, &station())?)?;
+    assert_eq!(grants.open(), [second]);
     Ok(())
 }
 
@@ -326,7 +367,7 @@ fn a_push_hands_over_the_stations_events_unchanged() -> Outcome {
     let pushed: Vec<Attested<Event>> = vec![Attested::from(Event::genesis_from_parts([7; 32], NOW as u64, operations))];
     let request = EnvelopeBuilder::new().add_must_understand(&PushEvents {})?.add(&Events::new(&pushed))?.encode();
 
-    let received = registry_reads(&request);
+    let received = registry_reads(&request)?;
     let (_, events) = received.components().read::<(PushEvents, Events)>()?;
     let imported = events.read()?;
     assert_eq!(imported, pushed);
@@ -340,7 +381,7 @@ fn a_push_hands_over_the_stations_events_unchanged() -> Outcome {
 #[test]
 fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_order() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&GetCatalog {})?.encode();
-    registry_reads(&request).components().read::<GetCatalog>()?;
+    registry_reads(&request)?.components().read::<GetCatalog>()?;
 
     let stocks = [stock("4x6", 101.6, Some(152.4)), stock("80mm Continuous", 80.0, None)];
     let formats = |list: &[&str]| MimeTypes::new(list.iter().map(|format| MimeType::new(*format).unwrap()).collect()).unwrap();
@@ -363,7 +404,7 @@ fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_or
 
     let read: Vec<(Option<Media>, Option<PrinterFingerprint>)> =
         reply(&answer, |catalog| Ok(catalog.records().map(|record| record.components().read()).collect::<Result<_, _>>()?))?
-            .map_err(|refusal| format!("the catalog was refused as {}", refusal.code))?;
+            .map_err(|refused| format!("the catalog was refused as {}", refused.refusal.code))?;
     let read_stocks: Vec<Media> = read.iter().filter_map(|(stock, _)| stock.clone()).collect();
     assert_eq!(read_stocks, stocks);
     let read_fingerprints: Vec<PrinterFingerprint> = read.into_iter().filter_map(|(_, fingerprint)| fingerprint).collect();
@@ -380,7 +421,7 @@ fn pylon_0_1_0s_registration_takes_the_same_components_without_an_application() 
     let assignment = ScopeAssignment { station: station_record().into() };
     let first = FirstScope { name: Name::new("Acme")? };
     let request = EnvelopeBuilder::new().add_must_understand(&Register {})?.add(&assignment)?.add(&first)?.encode();
-    let received = registry_reads(&request);
+    let received = registry_reads(&request)?;
     let (_, read_assignment, read_first, application) =
         received.components().read::<(Register, ScopeAssignment, FirstScope, Option<ForApplication>)>()?;
     assert_eq!((read_assignment, read_first, application), (assignment, first, None));
