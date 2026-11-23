@@ -1,9 +1,10 @@
 //! What a station's checks of a request's authority honour and refuse, at their edges: the one
 //! station a signed request names, how far off its expiry lies, and a slip's moments by its
-//! issuer's clock and by the station's, the same checks whichever path brought the request.
+//! issuer's clock and by the station's, the same checks whichever path brought the request; and
+//! the registry an application's endorsement vouches for.
 
 use super::{
-    checks::{carried_signed_request, checked_slip, opened_signed_request, Refused},
+    checks::{carried_signed_request, checked_slip, opened_signed_request, taken_hosting, Refused},
     *,
 };
 
@@ -121,5 +122,17 @@ fn a_slip_presented_by_another_party_is_refused() -> Outcome {
         .add_must_understand(&presented)?
         .encode();
     assert!(not_authorized(checked_slip(&decoded(&request, STATION_UNDERSTANDS), None).map(|_| ())));
+    Ok(())
+}
+
+/// An endorsement vouches for the one registry it names: listed in another registry's document, a
+/// well-formed endorsement, signed by the application, is not taken, so that no registry lists an
+/// application that did not endorse it.
+#[test]
+fn an_endorsement_is_taken_only_from_the_document_of_the_registry_it_names() -> Outcome {
+    let hosting = Hosting { registry: registry(), name: Name::new("Acme")?, address: HostName::new("acme.example.com")? };
+    let endorsement: SignedHosting = signed(EnvelopeBuilder::new().add_must_understand(&hosting)?);
+    assert_eq!(taken_hosting(&endorsement, &registry())?, hosting);
+    assert!(not_authorized(taken_hosting(&endorsement, &key(7)).map(|_| ())));
     Ok(())
 }

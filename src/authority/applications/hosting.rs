@@ -1,5 +1,6 @@
 use ankurah::Model;
 
+use super::HostName;
 use crate::{codec::Minted, name::Name, public_key::PublicKey};
 
 /// That a registry hosts the application whose key signs this, under a name, for the people who
@@ -21,11 +22,12 @@ pub struct Hosting {
     #[active_type(LWW)]
     #[property(id = "EFgo84PrhdH_N1ACrt84_zvIzdf11QG76og_dMKxJkg")]
     pub name: Name,
-    /// The application's address, where its people log in: its host name alone, in lower case,
-    /// with an internationalized name in its ASCII form (`xn--`), and with no scheme, port or
-    /// path, such as `acme.example.com`, so that a registry and a station write one address one
-    /// way, and a station compares it with the address its person typed.
+    /// The application's address, where its people log in: its host name alone, in the one form
+    /// in which a host name is written, such as `acme.example.com`, so that a registry and a
+    /// station write one address one way, and a station compares it with the address its person
+    /// typed, written the same way. A hosting whose address is written any other way does not
+    /// read.
     #[active_type(LWW)]
     #[property(id = "0CKENjMLxBy4vNsWIqvfUL5vAGZJBTkJ4ubBxg3UqK8")]
-    pub address: String,
+    pub address: HostName,
 }

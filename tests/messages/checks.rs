@@ -1,7 +1,8 @@
 //! What a station or a registry checks of a request before it acts on it, as the components'
 //! documentation sets out, written once so that every path's tests check a request the same way:
 //! that the request asks one thing, the authority it carries, what that authority reaches, the
-//! document that follows a print, and where a registration asks to register the station.
+//! document that follows a print, and where a registration asks to register the station; and what
+//! a station checks of an application's endorsement of the registry that lists it.
 
 use std::fmt;
 
@@ -165,6 +166,18 @@ pub fn checked_slip(received: &ReceivedEnvelope<'_>, voided: Option<Timestamp>) 
         return Err(Refused::not_authorized("the slip does not cover this station"));
     }
     Ok((Slip { devices, allows }, approval))
+}
+
+/// The hosting an application's endorsement vouches for, as a station takes it from the document
+/// of the registry whose endpoint's key is `listed_by`, before it asks its person anything: its
+/// signature verified, read as a reader of hostings, and taken only when it names that registry,
+/// so that no registry lists an application under an endorsement of another registry.
+pub fn taken_hosting(endorsement: &SignedHosting, listed_by: &PublicKey) -> Result<Hosting, Refused> {
+    let hosting: Hosting = endorsement.open(&Limits::default(), HOSTING_UNDERSTANDS)?.components().read()?;
+    if hosting.registry != *listed_by {
+        return Err(Refused::not_authorized("the endorsement vouches for another registry's hosting"));
+    }
+    Ok(hosting)
 }
 
 /// The station's devices, each with the request that uses it: its printer, which prints, and its

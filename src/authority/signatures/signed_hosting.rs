@@ -56,7 +56,7 @@ impl Signed for SignedHosting {
 mod tests {
     use super::*;
     use crate::{
-        authority::Hosting,
+        authority::{HostName, Hosting},
         codec::{EnvelopeBuilder, Limits},
         name::Name,
     };
@@ -68,7 +68,7 @@ mod tests {
     fn a_hosting_reads_back_from_its_endorsement_once_the_signature_verifies() {
         let application = SigningKey::from_bytes(&[1; 32]);
         let registry = PublicKey::from(SigningKey::from_bytes(&[6; 32]).verifying_key());
-        let hosting = Hosting { registry, name: Name::new("Acme").unwrap(), address: "acme.example.com".into() };
+        let hosting = Hosting { registry, name: Name::new("Acme").unwrap(), address: HostName::new("acme.example.com").unwrap() };
         let mut envelope = EnvelopeBuilder::new();
         envelope.add_must_understand(&hosting).unwrap();
         let endorsement = SignedHosting::sign(SealedEnvelope::new(envelope.encode()), &application);

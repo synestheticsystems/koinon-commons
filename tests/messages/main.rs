@@ -19,8 +19,8 @@ use ed25519_dalek::SigningKey;
 use koinon_commons::{
     authority::{
         requests::{ClaimInvitation, Retire, VoidSlips},
-        AllowsRequests, AtDevices, AtStations, Expiry, ForApplication, InvitationClaim, Party, PermissionSlip, PresentedSlip, Retirement,
-        Signed, SignedRequest, SignedRetirement, SlipsVoided,
+        AllowsRequests, AtDevices, AtStations, Expiry, ForApplication, HostName, Hosting, InvitationClaim, Party, PermissionSlip,
+        PresentedSlip, Retirement, Signed, SignedHosting, SignedRequest, SignedRetirement, SlipsVoided,
     },
     catalog::{requests::GetCatalog, PrinterFingerprint},
     codec::{EnvelopeBuilder, Limits, Minted, MintedId, ReceivedEnvelope, SealedEnvelope},
@@ -89,6 +89,9 @@ const SLIP_UNDERSTANDS: &[MintedId] = &[PermissionSlip::ID, Party::ID, AtStation
 
 /// What a station reads inside an application's retirement.
 const RETIREMENT_UNDERSTANDS: &[MintedId] = &[Retirement::ID];
+
+/// What a station reads inside an application's endorsement of a registry's hosting of it.
+const HOSTING_UNDERSTANDS: &[MintedId] = &[Hosting::ID];
 
 /// What a registry reads of a station's request.
 const REGISTRY_UNDERSTANDS: &[MintedId] = &[
@@ -166,6 +169,12 @@ fn key_of(secret: &SigningKey) -> PublicKey {
 /// The station the requests are for.
 fn station() -> PublicKey {
     key(2)
+}
+
+/// The key of the iroh endpoint of the registry that hosts the application, through which the
+/// application came to the station.
+fn registry() -> PublicKey {
+    key(6)
 }
 
 /// The party a permission slip is for.

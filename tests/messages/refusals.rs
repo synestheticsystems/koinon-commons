@@ -101,6 +101,38 @@ impl Minted for LooseFirstScope {
     }
 }
 
+/// `Hosting` as a registry writes it that gives the application's address as any text: under
+/// `Hosting`'s ids, so that a station reads it as one.
+#[derive(Model, Debug, Clone)]
+#[model(label = "tests.loose_hosting")]
+#[model(no_ffi)]
+pub struct LooseHosting {
+    #[active_type(LWW)]
+    pub registry: PublicKey,
+    #[active_type(LWW)]
+    pub name: Name,
+    #[active_type(LWW)]
+    pub address: String,
+}
+
+impl Minted for LooseHosting {
+    const ID: MintedId = Hosting::ID;
+
+    fn write_properties(&self, properties: &mut PropertyWriter) -> Result<(), EncodeError> {
+        properties.write(property::<Hosting>("registry"), &self.registry)?;
+        properties.write(property::<Hosting>("name"), &self.name)?;
+        properties.write(property::<Hosting>("address"), &self.address)
+    }
+
+    fn read_properties(properties: &Properties<'_>) -> Result<Self, ReadError> {
+        Ok(LooseHosting {
+            registry: properties.read(property::<Hosting>("registry"))?,
+            name: properties.read(property::<Hosting>("name"))?,
+            address: properties.read(property::<Hosting>("address"))?,
+        })
+    }
+}
+
 /// A slip with `extra` among its components, listed as one a receiver must understand, presented
 /// beside a weigh.
 fn weigh_under_a_slip_with<C: Minted>(extra: &C) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -248,6 +280,26 @@ fn a_first_scope_with_a_blank_name_is_refused_naming_the_property() -> Outcome {
             if *component == FirstScope::ID && *property == name && matches!(**error, PropertyError::InvalidValue { .. })),
         "{refused}"
     );
+    Ok(())
+}
+
+/// An endorsement whose address is more than a host name, or a host name written another way,
+/// though the application's key signed it, is refused by the rule of a host name, naming the
+/// property, so that a station never compares such an address with the one its person typed.
+#[test]
+fn an_endorsement_of_an_address_that_is_no_host_name_is_refused_naming_the_property() -> Outcome {
+    let address = property::<Hosting>("address");
+    for written in ["https://acme.example.com", "acme.example.com/login", "Acme.example.com", ""] {
+        let hosting = LooseHosting { registry: registry(), name: Name::new("Acme")?, address: written.into() };
+        let endorsement: SignedHosting = signed(EnvelopeBuilder::new().add_must_understand(&hosting)?);
+        let opened = endorsement.open(&Limits::default(), HOSTING_UNDERSTANDS)?;
+        let refused = opened.components().read::<Hosting>().unwrap_err();
+        assert!(
+            matches!(&refused, ReadError::MalformedValue { component, property, problem: ValueProblem::Refused(error) }
+                if *component == Hosting::ID && *property == address && matches!(**error, PropertyError::InvalidValue { .. })),
+            "{written:?}: {refused}"
+        );
+    }
     Ok(())
 }
 
