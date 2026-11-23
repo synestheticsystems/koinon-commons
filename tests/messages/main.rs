@@ -206,6 +206,11 @@ fn party() -> PublicKey {
     key(3)
 }
 
+/// A party of the application that the station's person blocked.
+fn blocked_party() -> PublicKey {
+    key(8)
+}
+
 fn entity(byte: u8) -> EntityId {
     EntityId::from_bytes([byte; 32])
 }
@@ -254,10 +259,21 @@ fn signed_by<C: Signed>(key: &SigningKey, body: &EnvelopeBuilder) -> C {
 /// A permission slip the application signed for the party, at the station, issued at `issued` and
 /// expiring at `expires`, for the requests `allows`, narrowed to `devices` when there are any.
 fn presented_slip(issued: i64, expires: i64, allows: &[MintedId], devices: &[EntityId]) -> Result<PresentedSlip, Box<dyn Error>> {
+    presented_slip_for(&party(), issued, expires, allows, devices)
+}
+
+/// A permission slip as [`presented_slip`] makes one, for the party whose key is `party_key`.
+fn presented_slip_for(
+    party_key: &PublicKey,
+    issued: i64,
+    expires: i64,
+    allows: &[MintedId],
+    devices: &[EntityId],
+) -> Result<PresentedSlip, Box<dyn Error>> {
     let mut envelope = EnvelopeBuilder::new();
     envelope
         .add_must_understand(&PermissionSlip { issued: at(issued), slip_id: entity(30) })?
-        .add_must_understand(&Party { key: party(), name: Name::new("Warehouse label PC")? })?
+        .add_must_understand(&Party { key: *party_key, name: Name::new("Warehouse label PC")? })?
         .add_must_understand(&AtStations { stations: PublicKeys::new(vec![station()])? })?
         .add_must_understand(&AllowsRequests { requests: ComponentIds::new(allows.to_vec())? })?
         .add_must_understand(&Expiry { expires: at(expires) })?;

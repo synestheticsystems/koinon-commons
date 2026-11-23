@@ -10,7 +10,9 @@ use crate::{codec::Minted, name::Name, public_key::PublicKey};
 ///
 /// On a station's records, beside its application's `ForApplication`, it is the station's record
 /// of a party it took jobs from under the application's slips, as the latest slip the party
-/// presented named it. Blocking the party is the Ankurah Commons' `Closed`, on the same entity.
+/// presented named it. Blocking the party is the Ankurah Commons' `Closed`, on the same entity:
+/// from then on the station refuses as `not_authorized` every request the party brings under a slip
+/// of that application, however valid the slip, as `PresentedSlip` sets out.
 #[derive(Model, Minted, Debug, Clone, PartialEq)]
 #[model(label = "authority.party")]
 #[model(id = "enZdC2C2ri1IUqNd1JFiQ5Ndq_CuxFFx7Bjtwmp5Svs")]

@@ -11,7 +11,7 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{offered, opened_signed_request, reaches, under_slip, Approval, Slip},
+    checks::{offered, opened_signed_request, reaches, under_slip, Approval, Path, Slip},
     *,
 };
 
@@ -72,7 +72,7 @@ fn a_listing_under_a_slip_is_answered_with_a_record_for_each_device_it_covers() 
 
     let received = station_reads(&request);
     received.components().read::<ListDevices>()?;
-    let (slip, approval) = under_slip(&received, None)?;
+    let (slip, approval) = under_slip(&received, &party(), None)?;
     assert_eq!(listed_under(&slip, &approval)?, [(Some(printer_record()), true, true, false)]);
     Ok(())
 }
@@ -83,7 +83,7 @@ fn a_listing_under_a_slip_for_prints_alone_names_the_printers_alone() -> Outcome
     let presented = presented_slip(NOW - MINUTE, NOW + 60 * MINUTE, &[Print::ID], &[])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let (slip, approval) = under_slip(&station_reads(&request), None)?;
+    let (slip, approval) = under_slip(&station_reads(&request), &party(), None)?;
     assert_eq!(listed_under(&slip, &approval)?, [(Some(printer_record()), true, true, false)]);
     Ok(())
 }
@@ -97,7 +97,7 @@ fn a_signed_listing_is_answered_with_every_device_the_station_offers() -> Outcom
         Ok(())
     })?;
     let read = checks::carried_signed_request(&carrying(&request)?)?;
-    let (body, approval) = opened_signed_request(&read)?;
+    let (body, approval) = opened_signed_request(&read, &Path::Direct)?;
     body.components().read::<ListDevices>()?;
 
     let answer = listing(|device, kind| reaches(&approval, None, device, kind))?;
@@ -114,7 +114,7 @@ fn a_paired_computers_signed_listing_names_only_the_devices_its_person_offered_i
         Ok(())
     })?;
     let read = checks::carried_signed_request(&carrying(&request)?)?;
-    let (body, approval) = opened_signed_request(&read)?;
+    let (body, approval) = opened_signed_request(&read, &Path::Direct)?;
     body.components().read::<ListDevices>()?;
 
     let answer = listing(|device, kind| reaches(&approval, None, device, kind))?;
@@ -132,7 +132,7 @@ fn a_paired_computers_signed_weigh_on_a_scale_it_was_not_offered_is_refused() ->
         Ok(())
     })?;
     let read = checks::carried_signed_request(&carrying(&request)?)?;
-    let (body, approval) = opened_signed_request(&read)?;
+    let (body, approval) = opened_signed_request(&read, &Path::Direct)?;
     let (_, asked) = body.components().read::<(Weigh, ForDevice)>()?;
     assert!(!reaches(&approval, None, asked.device.id(), Weigh::ID));
 
@@ -154,7 +154,7 @@ fn a_print_under_a_slip_carries_the_slip_beside_the_request() -> Outcome {
     let request = request.encode();
 
     let received = station_reads(&request);
-    let (slip, approval) = under_slip(&received, None)?;
+    let (slip, approval) = under_slip(&received, &party(), None)?;
     let read = received.components().read::<ReadPrint>()?;
     assert!(reaches(&approval, Some(&slip), read.2.device.id(), Print::ID));
     print.read_back(read);
@@ -173,7 +173,7 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.add_must_understand(&presented)?.encode();
 
     let received = station_reads(&request);
-    let (slip, approval) = under_slip(&received, None)?;
+    let (slip, approval) = under_slip(&received, &party(), None)?;
     assert!(slip.devices.is_none(), "the slip covers every device at the station");
     assert_eq!(received.components().read::<(Weigh, ForDevice)>()?.1, device);
     assert!(reaches(&approval, Some(&slip), scale_record(), Weigh::ID));

@@ -1,33 +1,52 @@
 //! What a station's checks of a request's authority honour and refuse, at their edges: the one
-//! station a signed request names, how far off its expiry lies, and a slip's moments by its
-//! issuer's clock and by the station's, the same checks whichever path brought the request; and
-//! the registry an application's endorsement vouches for.
+//! station a signed request names, how far off its expiry lies, the registry whose connection
+//! brought it, and a slip's moments by its issuer's clock and by the station's, the same checks
+//! whichever path brought the request; the party a slip is for, and whether the station's person
+//! blocked it; the registry a voiding comes from; and the registry an application's endorsement
+//! vouches for.
 
 use super::{
-    checks::{carried_signed_request, opened_signed_request, taken_hosting, under_slip, Refused},
+    checks::{carried_signed_request, opened_signed_request, taken_hosting, under_slip, voiding, Path, Refused},
     *,
 };
 
-/// A weigh on the scale, signed by `key` for `stations` until `expires`, as a station opens it.
+/// A weigh on the scale, signed by `key` for `stations` until `expires`, as a station opens it on
+/// the direct path.
 fn signed_weigh(key: &SigningKey, stations: &[PublicKey], expires: i64) -> Result<Result<(), Refused>, Box<dyn Error>> {
+    signed_weigh_by_path(key, stations, expires, &Path::Direct)
+}
+
+/// A weigh on the scale, signed by `key` for `stations` until `expires`, as a station opens it
+/// once it came by `path`.
+fn signed_weigh_by_path(
+    key: &SigningKey,
+    stations: &[PublicKey],
+    expires: i64,
+    path: &Path,
+) -> Result<Result<(), Refused>, Box<dyn Error>> {
     let request = signed_request_by(key, stations, expires, |body| {
         body.add_must_understand(&Weigh {})?.add(&ForDevice { device: scale_record().into() })?;
         Ok(())
     })?;
     let read = carried_signed_request(&carrying(&request)?)?;
-    Ok(opened_signed_request(&read).map(|_| ()))
+    Ok(opened_signed_request(&read, path).map(|_| ()))
 }
 
 /// A weigh under a slip issued at `issued` and expiring at `expires`, as a station checks it, where
 /// the application's slips were last voided at `voided`, if ever.
 fn weigh_under_slip(issued: i64, expires: i64, voided: Option<i64>) -> Result<Result<(), Refused>, Box<dyn Error>> {
-    let presented = presented_slip(issued, expires, &[Weigh::ID], &[])?;
+    weigh_beside(&presented_slip(issued, expires, &[Weigh::ID], &[])?, &party(), voided)
+}
+
+/// A weigh on the scale beside `presented`, as a station checks it on a connection that proves
+/// the key `connection`, where the application's slips were last voided at `voided`, if ever.
+fn weigh_beside(presented: &PresentedSlip, connection: &PublicKey, voided: Option<i64>) -> Result<Result<(), Refused>, Box<dyn Error>> {
     let request = EnvelopeBuilder::new()
         .add_must_understand(&Weigh {})?
         .add(&ForDevice { device: scale_record().into() })?
-        .add_must_understand(&presented)?
+        .add_must_understand(presented)?
         .encode();
-    Ok(under_slip(&station_reads(&request), voided.map(at)).map(|_| ()))
+    Ok(under_slip(&station_reads(&request), connection, voided.map(at)).map(|_| ()))
 }
 
 fn not_authorized(outcome: Result<(), Refused>) -> bool {
@@ -68,7 +87,7 @@ fn a_request_signed_by_an_application_the_station_does_not_share_with_or_by_no_o
     let mut altered = request.content.as_bytes().to_vec();
     *altered.last_mut().unwrap() ^= 1;
     let forged = SignedRequest::new(SealedEnvelope::new(altered), request.signer, request.signature);
-    assert!(not_authorized(opened_signed_request(&forged).map(|_| ())));
+    assert!(not_authorized(opened_signed_request(&forged, &Path::Direct).map(|_| ())));
     Ok(())
 }
 
@@ -136,19 +155,54 @@ fn a_slip_issued_in_the_millisecond_of_a_voiding_and_before_it_is_void() -> Outc
 /// The connection proves the party's key, and a slip is of use to its party alone.
 #[test]
 fn a_slip_presented_by_another_party_is_refused() -> Outcome {
-    let mut body = EnvelopeBuilder::new();
-    body.add_must_understand(&PermissionSlip { issued: at(NOW - MINUTE), slip_id: entity(30) })?
-        .add_must_understand(&Party { key: key(4), name: Name::new("Someone else")? })?
-        .add_must_understand(&AtStations { stations: PublicKeys::new(vec![station()])? })?
-        .add_must_understand(&AllowsRequests { requests: ComponentIds::new(vec![Weigh::ID])? })?
-        .add_must_understand(&Expiry { expires: at(NOW + 60 * MINUTE) })?;
-    let presented: PresentedSlip = signed(&body);
+    let someone_elses = presented_slip_for(&key(4), NOW - MINUTE, NOW + 60 * MINUTE, &[Weigh::ID], &[])?;
+    assert!(not_authorized(weigh_beside(&someone_elses, &party(), None)?));
+    assert_eq!(weigh_beside(&someone_elses, &key(4), None)?, Ok(()));
+    Ok(())
+}
+
+/// A party the station's person blocked under the application is refused, though its slip is
+/// valid in every other way and it presents the slip on its own connection; the same slip's party
+/// that no one blocked is honoured.
+#[test]
+fn a_slip_whose_party_the_stations_person_blocked_is_refused() -> Outcome {
+    let blocked = presented_slip_for(&blocked_party(), NOW - MINUTE, NOW + 60 * MINUTE, &[Weigh::ID], &[])?;
+    assert!(not_authorized(weigh_beside(&blocked, &blocked_party(), None)?));
+    let not_blocked = presented_slip_for(&party(), NOW - MINUTE, NOW + 60 * MINUTE, &[Weigh::ID], &[])?;
+    assert_eq!(weigh_beside(&not_blocked, &party(), None)?, Ok(()));
+    Ok(())
+}
+
+/// A registry's gateway delivers jobs for its own applications alone. A request signed by an
+/// application that came through one registry is honoured down that registry's connection and on
+/// the direct path, and refused down another registry's, however valid its signature; one signed by
+/// a computer paired with the station, which came through no registry, is refused down any.
+#[test]
+fn a_signed_request_down_a_registrys_connection_is_honoured_only_for_an_application_that_came_through_it() -> Outcome {
+    let weigh = |key: &SigningKey, path: &Path| signed_weigh_by_path(key, &[station()], NOW + 5 * MINUTE, path);
+    assert_eq!(weigh(&application(), &Path::Registry(registry()))?, Ok(()));
+    assert_eq!(weigh(&application(), &Path::Direct)?, Ok(()));
+    assert!(not_authorized(weigh(&application(), &Path::Registry(key(7)))?));
+    assert_eq!(weigh(&paired_computer(), &Path::Direct)?, Ok(()));
+    assert!(not_authorized(weigh(&paired_computer(), &Path::Registry(registry()))?));
+    Ok(())
+}
+
+/// A voiding of an application's slips has its authority from the connection it comes on: it is
+/// taken down the connection of the registry the application came through, and refused down
+/// another registry's or on the direct path.
+#[test]
+fn a_voiding_is_taken_only_from_the_registry_its_application_came_through() -> Outcome {
+    let voided = SlipsVoided { before: at(NOW) };
     let request = EnvelopeBuilder::new()
-        .add_must_understand(&Weigh {})?
-        .add(&ForDevice { device: scale_record().into() })?
-        .add_must_understand(&presented)?
+        .add_must_understand(&VoidSlips {})?
+        .add_must_understand(&voided)?
+        .add(&ForApplication { key: key_of(&application()) })?
         .encode();
-    assert!(not_authorized(under_slip(&station_reads(&request), None).map(|_| ())));
+    let received = station_reads(&request);
+    assert_eq!(voiding(&received, &Path::Registry(registry()))?.0, voided);
+    assert!(not_authorized(voiding(&received, &Path::Registry(key(7))).map(|_| ())));
+    assert!(not_authorized(voiding(&received, &Path::Direct).map(|_| ())));
     Ok(())
 }
 

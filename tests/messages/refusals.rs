@@ -12,7 +12,7 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{carried_signed_request, opened_signed_request, place, requested, taken_document, under_slip},
+    checks::{carried_signed_request, opened_signed_request, place, requested, taken_document, under_slip, Path},
     *,
 };
 
@@ -189,7 +189,7 @@ fn a_slip_that_lists_a_component_its_reader_does_not_act_on_is_refused_naming_it
     let presented: PresentedSlip = received.components().read()?;
     let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
     assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![DocumentFollows::ID] }));
-    assert_eq!(under_slip(&received, None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    assert_eq!(under_slip(&received, &party(), None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
     Ok(())
 }
 
@@ -209,7 +209,7 @@ fn a_slip_that_holds_a_restriction_in_a_record_is_refused_naming_it() -> Outcome
     let presented: PresentedSlip = received.components().read()?;
     let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
     assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![AtDevices::ID] }));
-    assert_eq!(under_slip(&received, None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    assert_eq!(under_slip(&received, &party(), None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
     Ok(())
 }
 
@@ -232,7 +232,7 @@ fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not
     })?;
     for request in [weigh, listing] {
         let read = carried_signed_request(&carrying(&request)?)?;
-        let refused = opened_signed_request(&read).err().expect("the request is refused");
+        let refused = opened_signed_request(&read, &Path::Direct).err().expect("the request is refused");
         assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
     }
 
@@ -242,7 +242,7 @@ fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not
         .add_must_understand(&follows)?
         .add_must_understand(&weeks_slip(&[])?)?
         .encode();
-    let refused = under_slip(&station_reads(&beside_a_slip), None).err().expect("the request is refused");
+    let refused = under_slip(&station_reads(&beside_a_slip), &party(), None).err().expect("the request is refused");
     assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
     Ok(())
 }
@@ -400,7 +400,7 @@ fn a_signed_request_that_carries_a_slip_inside_is_refused_as_a_bad_request() -> 
         Ok(())
     })?;
     let read = carried_signed_request(&carrying(&request)?)?;
-    let refused = opened_signed_request(&read).err().expect("the request is refused");
+    let refused = opened_signed_request(&read, &Path::Direct).err().expect("the request is refused");
     assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
     Ok(())
 }

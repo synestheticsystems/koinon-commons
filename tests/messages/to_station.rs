@@ -8,7 +8,7 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{carried_signed_request, opened_signed_request},
+    checks::{carried_signed_request, opened_signed_request, voiding, Path},
     *,
 };
 
@@ -31,7 +31,7 @@ fn a_gateway_print_is_signed_whole_and_answered_with_its_sent_attempt() -> Outco
 
     let read = carried_signed_request(&carrying(&request)?)?;
     assert_eq!(read, request);
-    let (body, _) = opened_signed_request(&read)?;
+    let (body, _) = opened_signed_request(&read, &Path::Registry(registry()))?;
     print.read_back(body.components().read()?);
 
     let sent = JobAttempt { state: AttemptState::Sent, accepted: at(NOW + 200), finished: Some(at(NOW + 450)) };
@@ -61,7 +61,7 @@ fn a_gateway_weigh_is_signed_whole_and_answered_with_the_reading() -> Outcome {
         Ok(())
     })?;
     let read = carried_signed_request(&carrying(&request)?)?;
-    let (body, _) = opened_signed_request(&read)?;
+    let (body, _) = opened_signed_request(&read, &Path::Registry(registry()))?;
     assert_eq!(body.components().read::<(Weigh, ForDevice)>()?.1, device);
 
     let reading = ScaleReading { status: WeightStatus::Stable, value: WeightValue::new(1.25)?, unit: WeightUnit::Kilograms };
@@ -95,8 +95,7 @@ fn a_voiding_of_slips_names_the_application_and_the_moment() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&VoidSlips {})?.add_must_understand(&voided)?.add(&application)?.encode();
 
     let received = station_reads(&request);
-    let (_, read_voided, read_application) = received.components().read::<(VoidSlips, SlipsVoided, ForApplication)>()?;
-    assert_eq!((read_voided, read_application), (voided, application));
+    assert_eq!(voiding(&received, &Path::Registry(registry()))?, (voided, application));
     assert_done(&done())
 }
 

@@ -21,7 +21,8 @@ use crate::{
 ///    and its restrictions among the envelope's own components and nothing else, so that any other
 ///    component the slip lists as one a receiver must understand refuses it, as does one so listed
 ///    that a record of the slip holds, such as an `AtDevices` there, which would be dropped;
-/// 3. its `Party` is the key the connection proves;
+/// 3. its `Party` is the key the connection proves, and not a party the station's person blocked
+///    under the slip's application, whose record of the party the station has closed;
 /// 4. it was issued no later than now, allowing for the drift of clocks
 ///    ([`PermissionSlip::is_issued_after`]), expires no earlier than it was issued
 ///    ([`PermissionSlip::expires_before_issue`]), runs no longer than a station honours a slip for

@@ -116,15 +116,29 @@ pub fn carried_signed_request(bytes: &[u8]) -> Result<SignedRequest, Refused> {
     Ok(received.components().read()?)
 }
 
+/// The path a request came by to the station.
+pub enum Path {
+    /// A party's own connection to the station, with no registry between them.
+    Direct,
+    /// The connection the station holds to a registry, whose endpoint's key the connection proves.
+    Registry(PublicKey),
+}
+
 /// The envelope of a request signed whole, opened as a station opens it at `NOW` by its clock,
-/// whichever path brought it: signed by an application the station shares its devices with, its
-/// signature verified, read as a reader of signed requests, with one request component and no
-/// carrier inside, listing as ones a receiver must understand only what that request and its
-/// restrictions act on, naming this station and no other, with an expiry neither passed nor
-/// further off than a station honours. It gives the envelope and the station's approval of the
-/// signer.
-pub fn opened_signed_request(request: &SignedRequest) -> Result<(ReceivedEnvelope<'_>, Approval), Refused> {
+/// having come by `path`: signed by an application the station shares its devices with, and,
+/// down a registry's connection, by one that came through that registry, since a registry's
+/// gateway delivers jobs for its own applications alone; its signature verified, read as a reader
+/// of signed requests, with one request component and no carrier inside, listing as ones a
+/// receiver must understand only what that request and its restrictions act on, naming this
+/// station and no other, with an expiry neither passed nor further off than a station honours. It
+/// gives the envelope and the station's approval of the signer.
+pub fn opened_signed_request<'r>(request: &'r SignedRequest, path: &Path) -> Result<(ReceivedEnvelope<'r>, Approval), Refused> {
     let approval = approval(&request.signer).ok_or_else(|| Refused::not_authorized("the station shares with no such application"))?;
+    if let Path::Registry(registry) = path {
+        if !approval.came_through(registry) {
+            return Err(Refused::not_authorized("the request's application did not come through the registry that brought it"));
+        }
+    }
     let body = request.open(&Limits::default(), SIGNED_REQUEST_UNDERSTANDS)?;
     let components = body.components();
     if components.has::<PresentedSlip>() || components.has::<SignedRequest>() {
@@ -141,25 +155,40 @@ pub fn opened_signed_request(request: &SignedRequest) -> Result<(ReceivedEnvelop
     Ok((body, approval))
 }
 
-/// What a station's person approved an application for.
+/// What a station's person approved an application for, and how it came to the station.
 pub enum Approval {
-    /// Every device the station offers: an application that came through a registry.
-    EveryDevice,
+    /// Every device the station offers: an application that came through the registry whose
+    /// endpoint's key this is.
+    ThroughRegistry(PublicKey),
     /// The devices the person offered a computer they paired with the station directly.
-    Offered(DeviceIds),
+    Paired(DeviceIds),
+}
+
+impl Approval {
+    /// Whether the application came through the registry whose endpoint's key is `registry`.
+    fn came_through(&self, registry: &PublicKey) -> bool {
+        matches!(self, Approval::ThroughRegistry(came_through) if came_through == registry)
+    }
 }
 
 /// The station's approval of the application whose key is `signer`, when it shares its devices
-/// with it: the application, through a registry, and a computer paired with it, offered the
+/// with it: the application, through its registry, and a computer paired with it, offered the
 /// printer alone.
 pub fn approval(signer: &PublicKey) -> Option<Approval> {
     if *signer == key_of(&application()) {
-        Some(Approval::EveryDevice)
+        Some(Approval::ThroughRegistry(registry()))
     } else if *signer == key_of(&paired_computer()) {
-        Some(Approval::Offered(DeviceIds::new(vec![printer_record().into()]).unwrap()))
+        Some(Approval::Paired(DeviceIds::new(vec![printer_record().into()]).unwrap()))
     } else {
         None
     }
+}
+
+/// Whether the station's person blocked the party whose key is `party_key` under the application
+/// whose key is `application_key`: whether the station's record of that party beside that
+/// application is closed. The person blocked one party of the application.
+pub fn is_blocked(application_key: &PublicKey, party_key: &PublicKey) -> bool {
+    *application_key == key_of(&application()) && *party_key == blocked_party()
 }
 
 /// A permission slip as the station read it, once its checks of the slip passed: what it narrows
@@ -170,24 +199,28 @@ pub struct Slip {
 }
 
 /// What a station reads of a request beside a permission slip, at `NOW` by its clock, before it
-/// acts on it, where the slip's application's registry wrote the station's registration at
-/// `REGISTERED` and last voided its slips at `voided`, if ever. The request asks one thing, and
-/// lists as ones a receiver must understand only what that request and its slip act on. The slip
-/// is signed by an application the station shares its devices with, its signature verified, read
-/// as a reader of slips, for the party the connection proves, issued no later than now and no
-/// earlier than the registration or the voiding, expiring no earlier than its issue, running no
-/// longer than a slip may, unexpired, and naming this station. It gives the slip and the
-/// station's approval of its application, which the slip narrows.
-pub fn under_slip(received: &ReceivedEnvelope<'_>, voided: Option<Timestamp>) -> Result<(Slip, Approval), Refused> {
+/// acts on it, where the connection that brought it proves the key `connection`, and the slip's
+/// application's registry wrote the station's registration at `REGISTERED` and last voided its
+/// slips at `voided`, if ever. The request asks one thing, and lists as ones a receiver must
+/// understand only what that request and its slip act on. The slip is signed by an application
+/// the station shares its devices with, its signature verified, read as a reader of slips, for
+/// the party the connection proves, which the station's person has not blocked under the
+/// application, issued no later than now and no earlier than the registration or the voiding,
+/// expiring no earlier than its issue, running no longer than a slip may, unexpired, and naming
+/// this station. It gives the slip and the station's approval of its application, which the slip
+/// narrows.
+pub fn under_slip(received: &ReceivedEnvelope<'_>, connection: &PublicKey, voided: Option<Timestamp>) -> Result<(Slip, Approval), Refused> {
     requested(received, &[PresentedSlip::ID])?;
     let presented: PresentedSlip = received.components().read()?;
     let approval = approval(&presented.signer).ok_or_else(|| Refused::not_authorized("the station shares with no such application"))?;
     let slip = presented.open(&Limits::default(), SLIP_UNDERSTANDS)?;
     let (body, slip_party, stations, devices, allows, expiry) =
         slip.components().read::<(PermissionSlip, Party, AtStations, Option<AtDevices>, AllowsRequests, Expiry)>()?;
-    // The connection proves the party's key.
-    if slip_party.key != party() {
+    if slip_party.key != *connection {
         return Err(Refused::not_authorized("the slip is another party's"));
+    }
+    if is_blocked(&presented.signer, &slip_party.key) {
+        return Err(Refused::not_authorized("the station's person blocked the slip's party"));
     }
     let honoured_from = voided.map_or(at(REGISTERED), |voided| voided.max(at(REGISTERED)));
     if body.is_issued_after(at(NOW))
@@ -204,6 +237,22 @@ pub fn under_slip(received: &ReceivedEnvelope<'_>, voided: Option<Timestamp>) ->
         return Err(Refused::not_authorized("the slip does not cover this station"));
     }
     Ok((Slip { devices, allows }, approval))
+}
+
+/// The voiding of an application's slips that `received` asks a station to apply, as the station
+/// takes it, having come by `path`: only down the connection of the registry the application came
+/// through, since the voiding has its authority from that connection alone.
+pub fn voiding(received: &ReceivedEnvelope<'_>, path: &Path) -> Result<(SlipsVoided, ForApplication), Refused> {
+    requested(received, &[])?;
+    let (_, voided, application) = received.components().read::<(VoidSlips, SlipsVoided, ForApplication)>()?;
+    let from_its_registry = match path {
+        Path::Registry(registry) => approval(&application.key).is_some_and(|approval| approval.came_through(registry)),
+        Path::Direct => false,
+    };
+    if !from_its_registry {
+        return Err(Refused::not_authorized("the voiding did not come from the registry its application came through"));
+    }
+    Ok((voided, application))
 }
 
 /// The hosting an application's endorsement vouches for, as a station takes it from the document
@@ -229,8 +278,8 @@ pub fn offered() -> [(EntityId, MintedId); 2] {
 /// lets the application use, and one the slip covers, of a kind whose requests the slip allows.
 pub fn reaches(approval: &Approval, slip: Option<&Slip>, device: EntityId, kind: MintedId) -> bool {
     let approved = match approval {
-        Approval::EveryDevice => true,
-        Approval::Offered(devices) => devices.contains(&device.into()),
+        Approval::ThroughRegistry(_) => true,
+        Approval::Paired(offered) => offered.contains(&device.into()),
     };
     approved
         && slip.is_none_or(|slip| {
