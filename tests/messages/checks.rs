@@ -1,16 +1,18 @@
 //! What a station or a registry checks of a request before it acts on it, as the components'
 //! documentation sets out, written once so that every path's tests check a request the same way:
 //! that the request asks one thing, the authority it carries, what that authority reaches, the
-//! document that follows a print, and where a registration asks to register the station; and what
-//! a station checks of an application's endorsement of the registry that lists it.
+//! claim of an invitation that pairs a computer, the document that follows a print, and where a
+//! registration asks to register the station; and what a station checks of an application's
+//! endorsement of the registry that lists it.
 
 use std::fmt;
 
 use koinon_commons::{
-    authority::{NotOpened, Party},
+    authority::{InvitationSecret, NotOpened, Party},
     codec::{DecodeError, ReadError, ReceivedComponents},
     devices::DeviceIds,
 };
+use sha2::{Digest, Sha256};
 
 use super::*;
 
@@ -34,6 +36,11 @@ impl Refused {
     fn not_understood(why: impl fmt::Display) -> Self {
         Refused { code: Refusal::NOT_UNDERSTOOD, why: why.to_string() }
     }
+}
+
+/// Whether `outcome` is a refusal as `not_authorized`.
+pub fn not_authorized<T>(outcome: Result<T, Refused>) -> bool {
+    outcome.is_err_and(|refused| refused.code == Refusal::NOT_AUTHORIZED)
 }
 
 impl fmt::Display for Refused {
@@ -189,6 +196,60 @@ pub fn approval(signer: &PublicKey) -> Option<Approval> {
 /// application is closed. The person blocked one party of the application.
 pub fn is_blocked(application_key: &PublicKey, party_key: &PublicKey) -> bool {
     *application_key == key_of(&application()) && *party_key == blocked_party()
+}
+
+/// Whether the station keeps a retirement of the key `key` on a record of it: the key of an
+/// application it shared its devices with until the key retired itself.
+pub fn has_retired(key: &PublicKey) -> bool {
+    *key == retired_application()
+}
+
+/// An invitation the station's person made to pair a computer with the station, as the station
+/// keeps it: its secret's SHA-256 alone, the devices it offers, and whether a computer claimed it.
+struct Invitation {
+    secret_hash: [u8; 32],
+    offered: DeviceIds,
+    claimed: bool,
+}
+
+/// The invitations the station's person made to pair computers with the station directly.
+pub struct Invitations(Vec<Invitation>);
+
+impl Invitations {
+    /// The invitation the station's person made, offering the printer alone, whose secret is
+    /// `secret`.
+    pub fn offering_the_printer(secret: &InvitationSecret) -> Self {
+        let offered = DeviceIds::new(vec![printer_record().into()]).unwrap();
+        Invitations(vec![Invitation { secret_hash: Sha256::digest(secret.as_bytes()).into(), offered, claimed: false }])
+    }
+
+    /// Takes the claim `received` carries, from the computer whose key its connection proves,
+    /// `computer`: the claim's secret is that of an invitation no computer has claimed, and the
+    /// computer's key one the station does not share its devices with already and holds no
+    /// retirement of. The invitation is then claimed, and the computer an application that the
+    /// station shares the devices it offers with, whose approval this gives. A claim refused for
+    /// its key leaves the invitation unclaimed.
+    pub fn claim(&mut self, received: &ReceivedEnvelope<'_>, computer: &PublicKey) -> Result<Approval, Refused> {
+        requested(received, &[])?;
+        let (_, claim) = received.components().read::<(ClaimInvitation, InvitationClaim)>()?;
+        let secret_hash: [u8; 32] = Sha256::digest(claim.secret.as_bytes()).into();
+        let invitation = self
+            .0
+            .iter_mut()
+            .find(|invitation| invitation.secret_hash == secret_hash)
+            .ok_or_else(|| Refused::not_authorized("no invitation of this station has that secret"))?;
+        if invitation.claimed {
+            return Err(Refused::not_authorized("the invitation was claimed already"));
+        }
+        if approval(computer).is_some() {
+            return Err(Refused::not_authorized("the station shares its devices with this key already"));
+        }
+        if has_retired(computer) {
+            return Err(Refused::not_authorized("this key retired itself"));
+        }
+        invitation.claimed = true;
+        Ok(Approval::Paired(invitation.offered.clone()))
+    }
 }
 
 /// A permission slip as the station read it, once its checks of the slip passed: what it narrows

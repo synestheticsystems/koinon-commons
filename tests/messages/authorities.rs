@@ -6,7 +6,7 @@
 //! vouches for.
 
 use super::{
-    checks::{carried_signed_request, opened_signed_request, taken_hosting, under_slip, voiding, Path, Refused},
+    checks::{carried_signed_request, not_authorized, opened_signed_request, taken_hosting, under_slip, voiding, Path, Refused},
     *,
 };
 
@@ -47,10 +47,6 @@ fn weigh_beside(presented: &PresentedSlip, connection: &PublicKey, voided: Optio
         .add_must_understand(presented)?
         .encode();
     Ok(under_slip(&station_reads(&request), connection, voided.map(at)).map(|_| ()))
-}
-
-fn not_authorized(outcome: Result<(), Refused>) -> bool {
-    outcome.is_err_and(|refused| refused.code == Refusal::NOT_AUTHORIZED)
 }
 
 #[test]

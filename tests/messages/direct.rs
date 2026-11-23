@@ -11,7 +11,7 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{offered, opened_signed_request, reaches, under_slip, Approval, Path, Slip},
+    checks::{not_authorized, offered, opened_signed_request, reaches, under_slip, Approval, Invitations, Path, Slip},
     *,
 };
 
@@ -263,22 +263,61 @@ fn a_retirement_handed_over_directly_is_acknowledged_whoever_hands_it_over() -> 
     assert_done(&done())
 }
 
-/// A computer claims the invitation the station's person made for it, and learns the station's
-/// name and the devices the invitation offers, here the printer alone.
+/// The secret of the invitation the station's person made, offering the printer alone.
+fn invitation_secret() -> InvitationSecret {
+    InvitationSecret::from_bytes([0x5c; 16])
+}
+
+/// A claim of the invitation whose secret is `secret`, by a computer that calls itself "Front desk
+/// Mac".
+fn claim_of(secret: &InvitationSecret) -> Result<Vec<u8>, Box<dyn Error>> {
+    let claim = InvitationClaim { secret: secret.clone(), name: Name::new("Front desk Mac")? };
+    Ok(EnvelopeBuilder::new().add_must_understand(&ClaimInvitation {})?.add(&claim)?.encode())
+}
+
+/// A computer claims the invitation the station's person made for it, which pairs it with the
+/// station, and learns the station's name and the devices the invitation offers, here the printer
+/// alone.
 #[test]
 fn a_claim_of_an_invitation_is_answered_with_the_station_and_the_devices_it_offers() -> Outcome {
-    let claim = InvitationClaim { secret: InvitationSecret::from_bytes([0x5c; 16]), name: Name::new("Front desk Mac")? };
-    let request = EnvelopeBuilder::new().add_must_understand(&ClaimInvitation {})?.add(&claim)?.encode();
-
+    let request = claim_of(&invitation_secret())?;
     let received = station_reads(&request);
-    assert_eq!(checks::requested(&received, &[])?, ClaimInvitation::ID);
-    let (_, read) = received.components().read::<(ClaimInvitation, InvitationClaim)>()?;
-    assert_eq!(read, claim);
+    let (_, claim) = received.components().read::<(ClaimInvitation, InvitationClaim)>()?;
+    assert_eq!((claim.secret, claim.name), (invitation_secret(), Name::new("Front desk Mac")?));
 
-    // The claim pairs the computer, which may then use what the invitation offered.
-    let approval = checks::approval(&key_of(&paired_computer())).expect("the station now shares with the computer");
+    let approval = Invitations::offering_the_printer(&invitation_secret()).claim(&received, &claiming_computer())?;
     let answer = devices_answer(Some(&station_itself()), |device, kind| reaches(&approval, None, device, kind))?;
     assert_eq!(claimed(&answer)?, (station_itself(), vec![(Some(printer_record()), true, true, false)]));
+    Ok(())
+}
+
+/// An invitation grants what it offers once: a second claim of it, from another computer, is
+/// refused, and so is a claim with a secret that is no invitation's.
+#[test]
+fn an_invitation_is_claimed_once_and_only_with_its_secret() -> Outcome {
+    let mut invitations = Invitations::offering_the_printer(&invitation_secret());
+    let guessed = claim_of(&InvitationSecret::from_bytes([0x5d; 16]))?;
+    assert!(not_authorized(invitations.claim(&station_reads(&guessed), &claiming_computer())));
+
+    let request = claim_of(&invitation_secret())?;
+    invitations.claim(&station_reads(&request), &claiming_computer())?;
+    assert!(not_authorized(invitations.claim(&station_reads(&request), &key(13))));
+    Ok(())
+}
+
+/// A claim from a key that retired itself, which a station never shares with again, or from a key
+/// it shares its devices with already, is refused, and leaves the invitation unclaimed, so that the
+/// computer it was for can still claim it.
+#[test]
+fn a_claim_refused_for_its_key_leaves_the_invitation_unclaimed() -> Outcome {
+    let mut invitations = Invitations::offering_the_printer(&invitation_secret());
+    let request = claim_of(&invitation_secret())?;
+    assert!(not_authorized(invitations.claim(&station_reads(&request), &retired_application())));
+    assert!(not_authorized(invitations.claim(&station_reads(&request), &key_of(&paired_computer()))));
+
+    let approval = invitations.claim(&station_reads(&request), &claiming_computer())?;
+    assert!(reaches(&approval, None, printer_record(), Print::ID));
+    assert!(!reaches(&approval, None, scale_record(), Weigh::ID));
     Ok(())
 }
 

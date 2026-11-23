@@ -10,9 +10,10 @@ use crate::codec::Minted;
 ///
 /// A station that shares its devices with the application closes its record of the application
 /// from the moment it hears of this, refuses the key from then on by every path, and refuses to
-/// share with the key again. A station keeps nothing of the retirement of an application it does
-/// not share with, so that no one can fill it with retirements of keys made for the purpose. A
-/// sender lists it, inside the signed envelope, as a component a receiver must understand.
+/// share with the key again, by either way: through a registry, or by a claim of an invitation
+/// (`ClaimInvitation`). A station keeps nothing of the retirement of an application it does not
+/// share with, so that no one can fill it with retirements of keys made for the purpose. A sender
+/// lists it, inside the signed envelope, as a component a receiver must understand.
 #[derive(Model, Minted, Debug, Clone, PartialEq)]
 #[model(label = "authority.retirement")]
 #[model(id = "a0fDwfoJf36ur9V6YJUnV7haIFSC_ocuR8QXhE6vicQ")]

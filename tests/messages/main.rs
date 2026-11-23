@@ -182,6 +182,18 @@ fn paired_computer() -> SigningKey {
     SigningKey::from_bytes(&[5; 32])
 }
 
+/// The key of a computer that claims an invitation to pair with the station, which the station
+/// does not share its devices with yet.
+fn claiming_computer() -> PublicKey {
+    key(12)
+}
+
+/// The key of an application the station shared its devices with until the key retired itself,
+/// whose record the station closed then, keeping the retirement on it.
+fn retired_application() -> PublicKey {
+    key(11)
+}
+
 fn key(seed: u8) -> PublicKey {
     PublicKey::from(SigningKey::from_bytes(&[seed; 32]).verifying_key())
 }
