@@ -149,26 +149,43 @@ fn at(millis: i64) -> Timestamp {
 }
 
 /// The clock by which a registry gives the moments a station compares exactly, a slip's issue, a
-/// registration's and a voiding's, as `PermissionSlip` sets out: each later than every one it gave
-/// before, the millisecond after the last one whenever its own clock reads that one or an earlier
-/// one.
+/// registration's and a voiding's, under the rules `PermissionSlip` sets out: each later than every
+/// one it gave before, the millisecond after the last one whenever its own clock reads that one or
+/// an earlier one; each kept before it is handed out, here in `last`, which a registry that restarts
+/// reads back; and a slip handed out only once the registry's clock has reached its moment.
 #[derive(Default)]
 struct RegistryClock {
+    /// The last moment the registry gave, as its store keeps it.
     last: Option<i64>,
 }
 
+/// A slip's issue, as a registry gives it: the moment the slip is issued under, and the moment by
+/// the registry's clock at which it hands the slip out, having waited for its clock to reach it.
+struct Issue {
+    moment: i64,
+    handed_out: i64,
+}
+
 impl RegistryClock {
-    /// The clock of a registry that has restarted, which carries on from `last`, the last moment it
-    /// gave.
+    /// The clock of a registry that has restarted, or whose clock was set back, which carries on
+    /// from `last`, the last moment it gave, as its store kept it.
     fn resumed(last: i64) -> Self {
         RegistryClock { last: Some(last) }
     }
 
-    /// The moment the registry gives when its own clock reads `now`.
+    /// The moment the registry gives a registration or a voiding when its own clock reads `now`,
+    /// kept before it is handed out.
     fn moment(&mut self, now: i64) -> i64 {
         let moment = self.last.map_or(now, |last| now.max(last + 1));
         self.last = Some(moment);
         moment
+    }
+
+    /// A slip's issue when the registry's clock reads `now`: the next moment, handed out once the
+    /// registry's clock reads it, which is at once unless that moment lies ahead of its clock.
+    fn slip(&mut self, now: i64) -> Issue {
+        let moment = self.moment(now);
+        Issue { moment, handed_out: moment.max(now) }
     }
 }
 

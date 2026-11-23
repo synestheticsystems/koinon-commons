@@ -29,14 +29,24 @@ use crate::{authority::Expiry, codec::Minted};
 /// issued no earlier than the moment the application's registry wrote the station's registration
 /// for the application, which the person's latest yes made, nor than the moment that registry last
 /// voided the application's slips (`SlipsVoided`). The registry gives those moments and the slip's
-/// issue by its one clock, so the station compares them exactly; and it gives each of them later
-/// than every one it gave before, taking the millisecond after the last one it gave whenever its
-/// clock reads that one or an earlier one, as within one millisecond or after a restart, which
-/// carries on from the last one it gave. So a slip issued before a registration or a voiding is
-/// earlier than it, however close the two come, and the exact comparison tells them apart. A
-/// station refuses a slip that says it was issued later than now, by more than the drift of clocks
-/// `Expiry` allows, one whose expiry comes before its issue, and one that runs on for longer than a
-/// station honours a slip for.
+/// issue by its one clock, so the station compares them exactly. A registry's clock keeps three
+/// rules, so that the exact comparison orders them, and so that a station whose clock agrees with
+/// the registry's, within the drift of clocks `Expiry` allows, takes every slip it is handed:
+///
+/// - each moment is later than every one the registry gave before: the millisecond after the last
+///   one whenever its clock reads that one or an earlier one, as within one millisecond, or after a
+///   restart or after its clock was set back, when it carries on from the last one it gave;
+/// - it gives moments one at a time, and keeps each in its store before it hands it out, so that no
+///   moment is given twice, even after a crash;
+/// - and it never issues a slip under a moment its own clock has not reached: when the next moment
+///   lies ahead of its clock, it waits until its clock reaches it, rather than hand out a slip a
+///   station would take for one issued in the future. A registration and a voiding take the next
+///   moment at once, since a station compares them with the moments of slips alone.
+///
+/// So a slip issued before a registration or a voiding is earlier than it, however close the two
+/// come, and one issued after them is later. A station refuses a slip that says it was issued later
+/// than now, by more than the drift of clocks `Expiry` allows, one whose expiry comes before its
+/// issue, and one that runs on for longer than a station honours a slip for.
 // OPEN: whether an application that a station's person paired with directly, with no registry,
 // may sign slips. The rules above apply either way; a station's check of the slip's signer names
 // the applications that may.

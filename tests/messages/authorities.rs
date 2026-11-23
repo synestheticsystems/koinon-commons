@@ -139,12 +139,32 @@ fn a_slip_that_expires_before_it_was_issued_is_refused() -> Outcome {
 fn a_slip_issued_in_the_millisecond_of_a_voiding_and_before_it_is_void() -> Outcome {
     let now = NOW - 10 * MINUTE;
     let mut clock = RegistryClock::default();
-    let issued = clock.moment(now);
+    let issued = clock.slip(now).moment;
     let voided = clock.moment(now);
     assert!(not_authorized(weigh_under_slip(issued, NOW + 60 * MINUTE, Some(voided))?));
 
-    let reissued = RegistryClock::resumed(voided).moment(now - 5);
+    let reissued = RegistryClock::resumed(voided).slip(now - 5).moment;
     assert_eq!(weigh_under_slip(reissued, NOW + 60 * MINUTE, Some(voided))?, Ok(()));
+    Ok(())
+}
+
+/// A registry kept a voiding's moment, then its clock was set back: by a millisecond less than the
+/// drift of clocks a station allows, by exactly that drift, and by two minutes. It carries on from
+/// the voiding's moment, and hands its next slip out only once its clock reaches the slip's moment,
+/// when a station whose clock agrees with the registry's takes it. Handed out at once, the same
+/// slip would be taken for one issued in the future once the clock was set back by the drift a
+/// station allows.
+#[test]
+fn a_registry_whose_clock_was_set_back_hands_out_a_slip_once_its_clock_reaches_the_slips_moment() -> Outcome {
+    let voided = NOW - 1;
+    for set_back in [Expiry::CLOCK_SKEW_MS - 1, Expiry::CLOCK_SKEW_MS, 2 * MINUTE] {
+        let now = voided - set_back;
+        let issue = RegistryClock::resumed(voided).slip(now);
+        assert_eq!((issue.moment, issue.handed_out), (NOW, NOW), "set back by {set_back}");
+        assert_eq!(weigh_under_slip(issue.moment, NOW + 60 * MINUTE, Some(voided))?, Ok(()), "set back by {set_back}");
+        let at_once = PermissionSlip { issued: at(issue.moment), slip_id: entity(30) };
+        assert_eq!(at_once.is_issued_after(at(now)), set_back >= Expiry::CLOCK_SKEW_MS, "set back by {set_back}");
+    }
     Ok(())
 }
 
