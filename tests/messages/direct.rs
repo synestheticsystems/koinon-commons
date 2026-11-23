@@ -11,7 +11,8 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{not_authorized, offered, opened_signed_request, reaches, under_slip, Approval, Invitations, Path, Slip},
+    checks::{not_authorized, opened_signed_request, reaches, under_slip, Path, Slip},
+    records::{offered, Approval, Invitations},
     *,
 };
 
@@ -148,7 +149,7 @@ fn a_listing_under_a_slip_for_devices_the_station_does_not_offer_is_refused() ->
 /// all the same.
 #[test]
 fn a_listing_without_the_stations_own_record_names_the_devices_all_the_same() -> Outcome {
-    let approval = checks::approval(&key_of(&application())).ok_or("the station shares with the application")?;
+    let approval = records::approval(&key_of(&application())).ok_or("the station shares with the application")?;
     let answer = devices_answer(None, |device, kind| reaches(&approval, None, device, kind))?;
     let devices = vec![(Some(printer_record()), true, true, false), (Some(scale_record()), false, false, true)];
     assert_eq!(named(&answer)?, Ok(Named { station: None, devices }));
@@ -326,7 +327,7 @@ fn a_claim_refused_for_its_key_leaves_the_invitation_unclaimed() -> Outcome {
 /// may leave the record out.
 #[test]
 fn an_answer_to_a_claim_without_the_stations_own_record_does_not_read_as_one() -> Outcome {
-    let approval = checks::approval(&key_of(&paired_computer())).ok_or("the station shares with the computer")?;
+    let approval = records::approval(&key_of(&paired_computer())).ok_or("the station shares with the computer")?;
     let answer = devices_answer(None, |device, kind| reaches(&approval, None, device, kind))?;
     assert!(claimed(&answer).is_err());
     assert_eq!(listed(&answer)?, [(Some(printer_record()), true, true, false)]);
