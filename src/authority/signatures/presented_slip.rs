@@ -18,8 +18,9 @@ use crate::{
 /// 1. the slip's signer is an application the station shares its devices with;
 /// 2. the slip opens ([`Signed::open`]): its signature verifies over the bytes as they arrived, and
 ///    then its envelope decodes for a reader of slips, which understands a slip's body, its party
-///    and its restrictions and nothing else, so that any other component the slip lists as one a
-///    receiver must understand refuses it;
+///    and its restrictions among the envelope's own components and nothing else, so that any other
+///    component the slip lists as one a receiver must understand refuses it, as does one so listed
+///    that a record of the slip holds, such as an `AtDevices` there, which would be dropped;
 /// 3. its `Party` is the key the connection proves;
 /// 4. it was issued no later than now, allowing for the drift of clocks
 ///    ([`PermissionSlip::is_issued_after`]), expires no earlier than it was issued

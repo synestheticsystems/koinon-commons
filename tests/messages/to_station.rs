@@ -77,7 +77,7 @@ fn a_retirement_is_passed_on_as_its_key_signed_it_and_acknowledged() -> Outcome 
     let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW) })?);
     let request = EnvelopeBuilder::new().add_must_understand(&Retire {})?.add_must_understand(&retirement)?.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let received = station_reads(&request);
     let (_, read) = received.components().read::<(Retire, SignedRetirement)>()?;
     let retired = read.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?;
     assert_eq!(retired.must_understand(), [Retirement::ID]);
@@ -94,7 +94,7 @@ fn a_voiding_of_slips_names_the_application_and_the_moment() -> Outcome {
     let voided = SlipsVoided { before: at(NOW) };
     let request = EnvelopeBuilder::new().add_must_understand(&VoidSlips {})?.add_must_understand(&voided)?.add(&application)?.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let received = station_reads(&request);
     let (_, read_voided, read_application) = received.components().read::<(VoidSlips, SlipsVoided, ForApplication)>()?;
     assert_eq!((read_voided, read_application), (voided, application));
     assert_done(&done())
@@ -108,10 +108,10 @@ fn pylon_0_1_0s_print_and_weigh_take_the_same_components_without_an_authority() 
     let mut request = EnvelopeBuilder::new();
     print.add_to(&mut request)?;
     let request = request.encode();
-    print.read_back(decoded(&request, STATION_UNDERSTANDS).components().read()?);
+    print.read_back(station_reads(&request).components().read()?);
 
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.encode();
-    assert_eq!(decoded(&request, STATION_UNDERSTANDS).components().read::<(Weigh, ForDevice)>()?.1, device);
+    assert_eq!(station_reads(&request).components().read::<(Weigh, ForDevice)>()?.1, device);
     Ok(())
 }

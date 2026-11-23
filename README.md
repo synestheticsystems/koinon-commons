@@ -122,6 +122,13 @@ it. Components are filed by what they mean, never by whether they travel.
   changes how the stream is read; a voiding of slips; and a registration's application and its
   `Registration`. A restriction added later is a component of its own, listed so, and never a
   new property of an old one, which an older receiver would ignore.
+- A receiver understands a component only where it reads it and for what it reads it. A reader
+  of a request, or of what a carrier carries, reads the envelope's own components and none of
+  its records, so it decodes with `ReceivedEnvelope::decode_own_components`, which refuses as
+  not understood a component listed so that a record holds. Once it knows which request it was
+  sent, it refuses as `not_understood` too a component listed so that neither that request nor
+  its authority acts on, such as a `DocumentFollows` beside a weigh, whose station reads no
+  document after it.
 
 OPEN: whether an envelope carries records at all, beyond the set of components a message is.
 Lean: yes, since a list of things that each carry several components needs them, and a record

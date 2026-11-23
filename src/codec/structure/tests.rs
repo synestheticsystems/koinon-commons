@@ -87,6 +87,13 @@ fn holding_in_a_record(value: Vec<u8>) -> Vec<u8> {
     envelope(&[], components(&[]), &[record(None, components(&[(A, vec![(P, value)])]))])
 }
 
+/// The index of `bytes` for a receiver that reads the components it understands wherever the
+/// envelope holds them, as every test here reads one; `received`'s tests read one for a receiver
+/// of the envelope's own components alone.
+fn index(bytes: &[u8], limits: &Limits, understood: &[MintedId]) -> Result<Index, DecodeError> {
+    super::index(bytes, limits, understood, Reading::Everywhere)
+}
+
 fn read(bytes: &[u8]) -> Result<Index, DecodeError> {
     index(bytes, &Limits::default(), &[])
 }

@@ -1,17 +1,18 @@
 //! What a receiver refuses, and what it ignores: a component it must understand and does not,
-//! answered with every such component named; a component or a property its request requires and
-//! does not carry, named; a value its type's rule refuses; components that contradict each other;
-//! a document that is not the one its print names; and a component it need not understand, which
-//! it reads past.
+//! answered with every such component named, as is one it must understand where it reads none, or
+//! for a request that does not act on it; a component or a property its request requires and does
+//! not carry, named; a value its type's rule refuses; components that contradict each other; a
+//! document that is not the one its print names; and a component it need not understand, which it
+//! reads past.
 
 use ankurah::property::PropertyError;
 use koinon_commons::{
     authority::NotOpened,
-    codec::{DecodeError, EncodeError, Properties, PropertyWriter, ReadError, ValueProblem},
+    codec::{DecodeError, EncodeError, Properties, PropertyWriter, ReadError, RecordBuilder, ValueProblem},
 };
 
 use super::{
-    checks::{carried_signed_request, checked_slip, opened_signed_request, place, requested, taken_document},
+    checks::{carried_signed_request, opened_signed_request, place, requested, taken_document, under_slip},
     *,
 };
 
@@ -133,16 +134,16 @@ impl Minted for LooseHosting {
     }
 }
 
-/// A slip with `extra` among its components, listed as one a receiver must understand, presented
-/// beside a weigh.
-fn weigh_under_a_slip_with<C: Minted>(extra: &C) -> Result<Vec<u8>, Box<dyn Error>> {
+/// A slip for weighs at the station, with what `extra` adds to its envelope, presented beside a
+/// weigh on the scale.
+fn weigh_under_a_slip_with(extra: impl FnOnce(&mut EnvelopeBuilder) -> Outcome) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut body = EnvelopeBuilder::new();
     body.add_must_understand(&PermissionSlip { issued: at(NOW), slip_id: entity(30) })?
         .add_must_understand(&Party { key: party(), name: Name::new("Warehouse label PC")? })?
         .add_must_understand(&AtStations { stations: PublicKeys::new(vec![station()])? })?
         .add_must_understand(&AllowsRequests { requests: ComponentIds::new(vec![Weigh::ID])? })?
-        .add_must_understand(&Expiry { expires: at(NOW + 60 * MINUTE) })?
-        .add_must_understand(extra)?;
+        .add_must_understand(&Expiry { expires: at(NOW + 60 * MINUTE) })?;
+    extra(&mut body)?;
     let presented: PresentedSlip = signed(&body);
     Ok(EnvelopeBuilder::new()
         .add_must_understand(&Weigh {})?
@@ -156,8 +157,11 @@ fn weigh_under_a_slip_with<C: Minted>(extra: &C) -> Result<Vec<u8>, Box<dyn Erro
 /// answer what this station is too old for.
 #[test]
 fn a_restriction_the_station_does_not_know_is_refused_and_named() -> Outcome {
-    let request = weigh_under_a_slip_with(&DuringHours { opens: 8, closes: 18 })?;
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let request = weigh_under_a_slip_with(|body| {
+        body.add_must_understand(&DuringHours { opens: 8, closes: 18 })?;
+        Ok(())
+    })?;
+    let received = station_reads(&request);
     let read: PresentedSlip = received.components().read()?;
     let refused = read.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
     let components = vec![DuringHours::ID];
@@ -177,12 +181,69 @@ fn a_restriction_the_station_does_not_know_is_refused_and_named() -> Outcome {
 /// list, so that a slip can carry nothing its reader would drop.
 #[test]
 fn a_slip_that_lists_a_component_its_reader_does_not_act_on_is_refused_naming_it() -> Outcome {
-    let request = weigh_under_a_slip_with(&DocumentFollows { length: DocumentLength::new(6)? })?;
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let request = weigh_under_a_slip_with(|body| {
+        body.add_must_understand(&DocumentFollows { length: DocumentLength::new(6)? })?;
+        Ok(())
+    })?;
+    let received = station_reads(&request);
     let presented: PresentedSlip = received.components().read()?;
     let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
     assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![DocumentFollows::ID] }));
-    assert_eq!(checked_slip(&received, None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    assert_eq!(under_slip(&received, None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    Ok(())
+}
+
+/// A slip that holds a restriction in a record, where no reader of slips reads one, and lists it as
+/// one a receiver must understand, is refused naming it, rather than honoured as a slip without
+/// it: here a slip narrowed to the printer, beside a weigh on the scale, which it would otherwise
+/// reach.
+#[test]
+fn a_slip_that_holds_a_restriction_in_a_record_is_refused_naming_it() -> Outcome {
+    let request = weigh_under_a_slip_with(|body| {
+        let mut narrowed = RecordBuilder::new(None);
+        narrowed.add_must_understand(&AtDevices { devices: DeviceIds::new(vec![printer_record().into()])? })?;
+        body.add_record(narrowed)?;
+        Ok(())
+    })?;
+    let received = station_reads(&request);
+    let presented: PresentedSlip = received.components().read()?;
+    let refused = presented.open(&Limits::default(), SLIP_UNDERSTANDS).unwrap_err();
+    assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![AtDevices::ID] }));
+    assert_eq!(under_slip(&received, None).err().expect("the slip is refused").code, Refusal::NOT_UNDERSTOOD);
+    Ok(())
+}
+
+/// A component the station acts on for one kind of request, listed as one a receiver must
+/// understand beside a request that does not act on it, refuses that request as not understood,
+/// signed whole or beside a slip: here a `DocumentFollows`, which says a document follows on the
+/// stream, in a weigh or a listing, whose station reads no document and would take the
+/// document's bytes for its next request.
+#[test]
+fn a_component_listed_beside_a_request_that_does_not_act_on_it_is_refused_as_not_understood() -> Outcome {
+    let follows = DocumentFollows { length: DocumentLength::new(6)? };
+    let scale = ForDevice { device: scale_record().into() };
+    let weigh = signed_request(|body| {
+        body.add_must_understand(&Weigh {})?.add(&scale)?.add_must_understand(&follows)?;
+        Ok(())
+    })?;
+    let listing = signed_request(|body| {
+        body.add_must_understand(&ListDevices {})?.add_must_understand(&follows)?;
+        Ok(())
+    })?;
+    for request in [weigh, listing] {
+        let read = carried_signed_request(&carrying(&request)?)?;
+        let refused = opened_signed_request(&read).err().expect("the request is refused");
+        assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
+    }
+
+    let beside_a_slip = EnvelopeBuilder::new()
+        .add_must_understand(&Weigh {})?
+        .add(&scale)?
+        .add_must_understand(&follows)?
+        .add_must_understand(&weeks_slip(&[])?)?
+        .encode();
+    let refused = under_slip(&station_reads(&beside_a_slip), None).err().expect("the request is refused");
+    assert_eq!(refused.code, Refusal::NOT_UNDERSTOOD, "{refused}");
     Ok(())
 }
 
@@ -196,7 +257,7 @@ fn a_request_the_station_does_not_know_is_refused_with_every_component_it_does_n
         .add(&ForDevice { device: printer_record().into() })?
         .add_must_understand(&DuringHours { opens: 8, closes: 18 })?
         .encode();
-    let refused = ReceivedEnvelope::decode(&request, &Limits::default(), STATION_UNDERSTANDS).unwrap_err();
+    let refused = ReceivedEnvelope::decode_own_components(&request, &Limits::default(), STATION_UNDERSTANDS).unwrap_err();
     let mut unknown = vec![Cut::ID, DuringHours::ID];
     unknown.sort();
     assert_eq!(refused, DecodeError::NotUnderstood { components: unknown });
@@ -213,7 +274,7 @@ fn a_component_the_station_need_not_understand_is_read_past() -> Outcome {
     request.add(&PackingNote { note: "fragile".into() })?;
     let request = request.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let received = station_reads(&request);
     assert!(received.components().ids().any(|id| id == PackingNote::ID));
     print.read_back(received.components().read()?);
     Ok(())
@@ -229,8 +290,7 @@ fn a_print_without_the_device_it_is_for_is_refused_naming_the_missing_component(
         .add(&print.print_job)?
         .add_must_understand(&print.follows)?
         .encode();
-    let refused =
-        decoded(&request, STATION_UNDERSTANDS).components().read::<(Print, JobId, ForDevice, PrintJob, DocumentFollows)>().unwrap_err();
+    let refused = station_reads(&request).components().read::<(Print, JobId, ForDevice, PrintJob, DocumentFollows)>().unwrap_err();
     assert!(matches!(refused, ReadError::MissingComponent { component } if component == ForDevice::ID), "{refused}");
     Ok(())
 }
@@ -242,7 +302,7 @@ fn a_print_without_the_device_it_is_for_is_refused_naming_the_missing_component(
 fn a_print_job_that_lacks_a_property_or_breaks_its_types_rule_is_refused_naming_it() -> Outcome {
     let read = |print_job: &LoosePrintJob| -> Result<PrintJob, ReadError> {
         let request = EnvelopeBuilder::new().add(print_job).unwrap().encode();
-        decoded(&request, STATION_UNDERSTANDS).components().read::<PrintJob>()
+        station_reads(&request).components().read::<PrintJob>()
     };
     let hash = DocumentHash::from_bytes([0xab; 32]).text();
     let loose = |copies, document_hash| LoosePrintJob { document_format: "application/x-zpl2".into(), copies, document_hash };
@@ -273,7 +333,7 @@ fn a_print_job_that_lacks_a_property_or_breaks_its_types_rule_is_refused_naming_
 #[test]
 fn a_first_scope_with_a_blank_name_is_refused_naming_the_property() -> Outcome {
     let request = EnvelopeBuilder::new().add(&LooseFirstScope { name: " \t".into() })?.encode();
-    let refused = decoded(&request, REGISTRY_UNDERSTANDS).components().read::<FirstScope>().unwrap_err();
+    let refused = registry_reads(&request).components().read::<FirstScope>().unwrap_err();
     let name = property::<FirstScope>("name");
     assert!(
         matches!(&refused, ReadError::MalformedValue { component, property, problem: ValueProblem::Refused(error) }
@@ -309,7 +369,7 @@ fn an_endorsement_of_an_address_that_is_no_host_name_is_refused_naming_the_prope
 fn a_request_that_asks_two_things_is_refused_as_a_bad_request() -> Outcome {
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add_must_understand(&ListDevices {})?.add(&device)?.encode();
-    let refused = requested(&decoded(&request, STATION_UNDERSTANDS).components()).unwrap_err();
+    let refused = requested(&station_reads(&request), &[]).unwrap_err();
     assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
     Ok(())
 }
@@ -325,7 +385,7 @@ fn a_registration_in_a_listed_scope_and_a_first_scope_at_once_is_refused_as_a_ba
         .add(&FirstScope { name: Name::new("Acme")? })?
         .add_must_understand(&ForApplication { key: key_of(&application()) })?
         .encode();
-    let refused = place(&decoded(&request, REGISTRY_UNDERSTANDS).components()).unwrap_err();
+    let refused = place(&registry_reads(&request).components()).unwrap_err();
     assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
     Ok(())
 }

@@ -229,6 +229,18 @@ fn decoded<'a>(bytes: &'a [u8], understood: &[MintedId]) -> ReceivedEnvelope<'a>
     ReceivedEnvelope::decode(bytes, &Limits::default(), understood).unwrap()
 }
 
+/// `bytes` decoded as a station decodes a request, whichever path brought it: as a reader of the
+/// envelope's own components, since a request carries no records, within the default limits.
+fn station_reads(bytes: &[u8]) -> ReceivedEnvelope<'_> {
+    ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), STATION_UNDERSTANDS).unwrap()
+}
+
+/// `bytes` decoded as a registry decodes a station's request: as a reader of the envelope's own
+/// components, within the default limits.
+fn registry_reads(bytes: &[u8]) -> ReceivedEnvelope<'_> {
+    ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), REGISTRY_UNDERSTANDS).unwrap()
+}
+
 /// `body`, encoded, as the application's key signs it under the carrier `C`.
 fn signed<C: Signed>(body: &EnvelopeBuilder) -> C {
     signed_by(&application(), body)

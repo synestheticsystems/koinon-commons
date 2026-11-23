@@ -71,7 +71,8 @@ pub enum DecodeError {
     MustUnderstandTwice { component: MintedId, at: usize },
     #[error("component {component} is listed as one a receiver must understand, and the envelope does not hold it")]
     MustUnderstandAbsent { component: MintedId },
-    /// The envelope lists as must-understand components this receiver does not understand, named
+    /// The envelope lists as must-understand components this receiver does not understand, or,
+    /// for a receiver of its own components alone, components so listed that a record holds, named
     /// all at once, so that a sender learns in one answer everything to leave out.
     #[error("the envelope lists as ones a receiver must understand components this receiver does not understand: {}", listed(components))]
     NotUnderstood { components: Vec<MintedId> },
@@ -130,9 +131,19 @@ const RECORD: &str = "an array of two: an entity id or null, then the record's c
 const ID: &str = "a minted id: a byte string of 32 bytes";
 const ENTITY: &str = "an entity id, a byte string of 32 bytes, or null";
 
+/// Where a receiver reads the components it understands: wherever the envelope holds them, or
+/// among the envelope's own components alone, so that it would drop one a record holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Reading {
+    Everywhere,
+    OwnComponents,
+}
+
 /// Checks every item of `bytes` within `limits`, and indexes the envelope they hold, which may
-/// list as must-understand only components in `understood`.
-pub(crate) fn index(bytes: &[u8], limits: &Limits, understood: &[MintedId]) -> Result<Index, DecodeError> {
+/// list as must-understand only components in `understood`, read as `reading` says: for a
+/// receiver of the envelope's own components alone, a component listed so is one it does not
+/// understand when a record holds it.
+pub(crate) fn index(bytes: &[u8], limits: &Limits, understood: &[MintedId], reading: Reading) -> Result<Index, DecodeError> {
     let mut walk = Walk { reader: Reader::new(bytes), limits: *limits, items: 0, within: None };
     let mut index = Index::default();
 
@@ -164,14 +175,33 @@ pub(crate) fn index(bytes: &[u8], limits: &Limits, understood: &[MintedId]) -> R
         return Err(DecodeError::MustUnderstandTwice { component, at });
     }
     index.must_understand = listed.into_iter().map(|(component, _)| component).collect();
-    if let Some(&component) = index.must_understand.iter().find(|component| !index.components.iter().any(|held| held.id == **component)) {
+    let held = ids_of(&index.components);
+    if let Some(&component) = index.must_understand.iter().find(|component| held.binary_search(component).is_err()) {
         return Err(DecodeError::MustUnderstandAbsent { component });
     }
-    let unknown: Vec<MintedId> = index.must_understand.iter().copied().filter(|component| !understood.contains(component)).collect();
+    let in_records = match reading {
+        Reading::Everywhere => Vec::new(),
+        Reading::OwnComponents => ids_of(&index.components[index.own.end..]),
+    };
+    let unknown: Vec<MintedId> = index
+        .must_understand
+        .iter()
+        .copied()
+        .filter(|component| !understood.contains(component) || in_records.binary_search(component).is_ok())
+        .collect();
     if !unknown.is_empty() {
         return Err(DecodeError::NotUnderstood { components: unknown });
     }
     Ok(index)
+}
+
+/// The ids of `components`, each once and in order, so that whether one is among them takes a
+/// search of them rather than a pass over every component for each listed one.
+fn ids_of(components: &[ComponentEntry]) -> Vec<MintedId> {
+    let mut ids: Vec<MintedId> = components.iter().map(|component| component.id).collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
 }
 
 /// Sorts `entries` by their keys, each given with where the entry begins by `keyed`, and gives a

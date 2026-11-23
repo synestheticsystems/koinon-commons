@@ -29,14 +29,19 @@ use crate::{
 ///    gateway job one that came through the registry whose connection brought it;
 /// 2. the request opens ([`Signed::open`]): its signature verifies over the bytes as they arrived,
 ///    and then its envelope decodes for a reader of signed requests, which understands the
-///    requests a station takes signed, their facts and their restrictions;
+///    requests a station takes signed, their facts and their restrictions, among the envelope's
+///    own components;
 /// 3. its envelope carries one request component, and no carrier: a `PresentedSlip`, or another
 ///    `SignedRequest`, inside it is refused as `bad_request`, since a request has its authority
 ///    from a signature over it or from a slip beside it, never from both;
-/// 4. its `AtStations` names this station and no other;
-/// 5. its `Expiry` has not passed, and lies no further off than a station honours
+/// 4. it lists as one a receiver must understand no component but that request component, the
+///    facts that request acts on, `AtStations` and `Expiry`: one that no reader of that request
+///    acts on, such as a `DocumentFollows` in a weigh, whose station reads no document after it,
+///    refuses it as `not_understood`;
+/// 5. its `AtStations` names this station and no other;
+/// 6. its `Expiry` has not passed, and lies no further off than a station honours
 ///    ([`SignedRequest::runs_too_long`]);
-/// 6. and then the station does what the request component asks, of the devices that `authority`
+/// 7. and then the station does what the request component asks, of the devices that `authority`
 ///    sets out the request reaches, taking every fact it acts on from inside the signature.
 ///
 /// In the envelope around the carrier, a sender lists the carrier as a component a receiver must

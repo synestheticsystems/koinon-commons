@@ -4,7 +4,7 @@
 //! the registry an application's endorsement vouches for.
 
 use super::{
-    checks::{carried_signed_request, checked_slip, opened_signed_request, taken_hosting, Refused},
+    checks::{carried_signed_request, opened_signed_request, taken_hosting, under_slip, Refused},
     *,
 };
 
@@ -27,7 +27,7 @@ fn weigh_under_slip(issued: i64, expires: i64, voided: Option<i64>) -> Result<Re
         .add(&ForDevice { device: scale_record().into() })?
         .add_must_understand(&presented)?
         .encode();
-    Ok(checked_slip(&decoded(&request, STATION_UNDERSTANDS), voided.map(at)).map(|_| ()))
+    Ok(under_slip(&station_reads(&request), voided.map(at)).map(|_| ()))
 }
 
 fn not_authorized(outcome: Result<(), Refused>) -> bool {
@@ -148,7 +148,7 @@ fn a_slip_presented_by_another_party_is_refused() -> Outcome {
         .add(&ForDevice { device: scale_record().into() })?
         .add_must_understand(&presented)?
         .encode();
-    assert!(not_authorized(checked_slip(&decoded(&request, STATION_UNDERSTANDS), None).map(|_| ())));
+    assert!(not_authorized(under_slip(&station_reads(&request), None).map(|_| ())));
     Ok(())
 }
 

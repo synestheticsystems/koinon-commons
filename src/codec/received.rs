@@ -5,7 +5,7 @@
 use ankurah::{property::PropertyError, EntityId, Property};
 
 use super::{
-    structure::{self, ComponentEntry, Index, PropertyEntry},
+    structure::{self, ComponentEntry, Index, PropertyEntry, Reading},
     value, DecodeError, Limits, Minted, MintedId, ValueProblem,
 };
 
@@ -35,11 +35,23 @@ impl<'a> ReceivedEnvelope<'a> {
     /// Checks every item of `bytes` within `limits`, and indexes the envelope they hold. No
     /// component is read yet: one the receiver does not know is checked, then ignored.
     ///
-    /// `understood` names every component this receiver understands, whatever it reads of them.
-    /// An envelope that lists as must-understand a component it does not name is refused, naming
-    /// every such component, before anything is read.
+    /// `understood` names every component this receiver understands, whatever it reads of them,
+    /// wherever the envelope holds them, among its own components or in a record. An envelope that
+    /// lists as must-understand a component it does not name is refused, naming every such
+    /// component, before anything is read.
     pub fn decode(bytes: &'a [u8], limits: &Limits, understood: &[MintedId]) -> Result<Self, DecodeError> {
-        Ok(ReceivedEnvelope { bytes, index: structure::index(bytes, limits, understood)? })
+        Ok(ReceivedEnvelope { bytes, index: structure::index(bytes, limits, understood, Reading::Everywhere)? })
+    }
+
+    /// Checks and indexes `bytes` as [`ReceivedEnvelope::decode`] does, for a receiver that reads
+    /// the envelope's own components and none of its records, as the reader of a request or of
+    /// what a carrier carries does. `understood` names the components it understands among the
+    /// envelope's own; one that the envelope lists as must-understand and that a record holds is
+    /// one it would drop, so it is refused too, named with every component this receiver does not
+    /// understand. A component a record holds that the envelope does not list so is checked, then
+    /// ignored, as any component the receiver does not know is.
+    pub fn decode_own_components(bytes: &'a [u8], limits: &Limits, understood: &[MintedId]) -> Result<Self, DecodeError> {
+        Ok(ReceivedEnvelope { bytes, index: structure::index(bytes, limits, understood, Reading::OwnComponents)? })
     }
 
     /// The bytes the envelope was decoded from, as they arrived.

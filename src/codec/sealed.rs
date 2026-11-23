@@ -27,10 +27,11 @@ impl SealedEnvelope {
         &self.0
     }
 
-    /// The envelope these bytes hold, as `ReceivedEnvelope::decode` reads one: for a carrier's
-    /// `Signed::open` alone, which verifies its signature first.
+    /// The envelope these bytes hold, as `ReceivedEnvelope::decode_own_components` reads one, since
+    /// what a key signed is the envelope's own components and no reader of it reads its records:
+    /// for a carrier's `Signed::open` alone, which verifies its signature first.
     pub(crate) fn decode(&self, limits: &Limits, understood: &[MintedId]) -> Result<ReceivedEnvelope<'_>, DecodeError> {
-        ReceivedEnvelope::decode(&self.0, limits, understood)
+        ReceivedEnvelope::decode_own_components(&self.0, limits, understood)
     }
 }
 

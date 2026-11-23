@@ -51,7 +51,10 @@ pub trait Signed: Minted {
     /// reads what a key is said to have signed before it knows that the key signed it. It decodes
     /// the bytes as they arrived, within `limits`, for a reader that understands `understood`: the
     /// components it acts on in this kind of statement, such as a slip's body, its party and its
-    /// restrictions, and no other.
+    /// restrictions, and no other. A statement is the envelope's own components, and no reader of
+    /// one reads its records, so a component the envelope lists as one a receiver must understand
+    /// and holds in a record is refused too, named with the others, since the reader would drop
+    /// it, as it would a restriction there.
     fn open(&self, limits: &Limits, understood: &[MintedId]) -> Result<ReceivedEnvelope<'_>, NotOpened> {
         self.verify()?;
         Ok(self.content().decode(limits, understood)?)
@@ -91,7 +94,7 @@ mod tests {
     use super::*;
     use crate::{
         authority::{PresentedSlip, Retirement, SignedRequest, SignedRetirement},
-        codec::EnvelopeBuilder,
+        codec::{EnvelopeBuilder, RecordBuilder},
     };
     use ankurah_commons::property::Timestamp;
 
@@ -160,6 +163,20 @@ mod tests {
     fn a_carrier_whose_envelope_this_reader_does_not_understand_is_refused_naming_the_component() {
         let carried = SignedRetirement::sign(retiring(), &application());
         let refused = carried.open(&Limits::default(), &[]).unwrap_err();
+        assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![Retirement::ID] }));
+    }
+
+    // A reader of a signed statement reads none of its records, so a component the signer lists as
+    // one a receiver must understand and puts in a record refuses the statement, even one this
+    // reader understands where it reads it.
+    #[test]
+    fn a_carrier_whose_envelope_holds_in_a_record_a_component_it_lists_so_is_refused_naming_it() {
+        let mut record = RecordBuilder::new(None);
+        record.add_must_understand(&retirement()).unwrap();
+        let mut envelope = EnvelopeBuilder::new();
+        envelope.add_record(record).unwrap();
+        let carried = SignedRetirement::sign(SealedEnvelope::new(envelope.encode()), &application());
+        let refused = carried.open(&Limits::default(), &[Retirement::ID]).unwrap_err();
         assert_eq!(refused, NotOpened::Unreadable(DecodeError::NotUnderstood { components: vec![Retirement::ID] }));
     }
 }

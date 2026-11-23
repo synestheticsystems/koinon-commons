@@ -174,6 +174,32 @@ fn understanding_is_checked_when_the_envelope_is_decoded_and_not_by_each_read() 
     assert_eq!(received.components().read::<(Deadline, Option<Marker>)>().unwrap(), (Deadline { until: 1 }, None));
 }
 
+// A receiver of the envelope's own components alone would drop a component a record holds, so one
+// the envelope lists as must-understand there is refused, named with those the receiver does not
+// understand at all; a component a record holds that is not listed so is read past.
+#[test]
+fn a_receiver_of_the_envelopes_own_components_refuses_one_a_record_holds_that_it_must_understand() {
+    let mut record = RecordBuilder::new(None);
+    record.add_must_understand(&Deadline { until: 1 }).unwrap().add(&size()).unwrap();
+    let mut envelope = EnvelopeBuilder::new();
+    envelope.add(&label()).unwrap().add_must_understand(&Marker {}).unwrap().add_record(record).unwrap();
+    let bytes = envelope.encode();
+
+    let refused = ReceivedEnvelope::decode_own_components(&bytes, &Limits::default(), &[Label::ID, Deadline::ID]).unwrap_err();
+    assert_eq!(refused, DecodeError::NotUnderstood { components: vec![Marker::ID, Deadline::ID] });
+    let refused = ReceivedEnvelope::decode_own_components(&bytes, &Limits::default(), &[Label::ID, Marker::ID, Deadline::ID]).unwrap_err();
+    assert_eq!(refused, DecodeError::NotUnderstood { components: vec![Deadline::ID] });
+    assert!(ReceivedEnvelope::decode(&bytes, &Limits::default(), &[Marker::ID, Deadline::ID]).is_ok());
+
+    let mut record = RecordBuilder::new(None);
+    record.add(&Deadline { until: 1 }).unwrap();
+    let mut envelope = EnvelopeBuilder::new();
+    envelope.add_must_understand(&Marker {}).unwrap().add_record(record).unwrap();
+    let bytes = envelope.encode();
+    let received = ReceivedEnvelope::decode_own_components(&bytes, &Limits::default(), &[Marker::ID]).unwrap();
+    assert_eq!(received.components().read::<Marker>().unwrap(), Marker {});
+}
+
 // A Label envelope holds twelve items: its array, the empty list, the components' map, Label's
 // id and its properties' map, three properties each an id and a value, and the records' array.
 #[test]

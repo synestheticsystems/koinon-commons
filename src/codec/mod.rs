@@ -9,7 +9,11 @@
 //! envelope that lacks a component or a property it requires, and one that lists as
 //! must-understand a component it does not understand, naming the component each time. A sender
 //! lists so a component an older receiver must not drop, such as a restriction on what is asked.
-//! The README's section "Envelopes" gives the encoding for an implementer in any language.
+//! A receiver understands a component only where it reads it: one that reads the envelope's own
+//! components and none of its records, as the reader of a request or of what a carrier carries
+//! does, decodes it with `ReceivedEnvelope::decode_own_components`, which refuses a component
+//! listed so that a record holds. The codec's modules set out the encoding, each the part it
+//! writes or reads, for an implementer in any language.
 //!
 //! A signature covers an envelope's bytes as they were encoded. A `ReceivedEnvelope` keeps the
 //! bytes it was read from, and a `SealedEnvelope` carries an envelope's bytes untouched inside

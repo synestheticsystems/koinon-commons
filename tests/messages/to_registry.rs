@@ -30,7 +30,7 @@ fn registered(registration: &Registration) -> Result<RecordBuilder, Box<dyn Erro
 #[test]
 fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&Hello {})?.encode();
-    let received = decoded(&request, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&request);
     assert_eq!(received.must_understand(), [Hello::ID]);
     received.components().read::<Hello>()?;
 
@@ -67,7 +67,7 @@ fn a_sign_in_is_answered_with_the_person_and_the_scopes_they_may_register_in() -
         nonce_seed: "kV3pQ8sN1xR6tB0yW4zH7mC2fJ9dL5gA8eU3oI1nT6c".into(),
     };
     let request = EnvelopeBuilder::new().add_must_understand(&SignIn {})?.add(&sign_in)?.encode();
-    let received = decoded(&request, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&request);
     assert_eq!(received.components().read::<(SignIn, IdTokenSignIn)>()?.1, sign_in);
 
     let person = SignedInPerson { name: Some("Ada Lovelace".into()), email: None };
@@ -115,7 +115,7 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
         .add_must_understand(&for_application())?
         .encode();
 
-    let received = decoded(&listed, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&listed);
     let mut must_understand = vec![Register::ID, ForApplication::ID];
     must_understand.sort();
     assert_eq!(received.must_understand(), must_understand);
@@ -125,7 +125,7 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
         (assignment.clone(), Place::Listed(placement), for_application())
     );
 
-    let received = decoded(&in_a_first_scope, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&in_a_first_scope);
     let (_, read_assignment, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
     assert_eq!((read_assignment, place(&received.components())?, application), (assignment, Place::First(first), for_application()));
     Ok(())
@@ -148,7 +148,7 @@ impl Grants {
     /// Ends the registration a notice that the station no longer shares names: its grant alone, if
     /// it is still open, so that a notice under an old grant leaves a newer one open.
     fn stop_sharing(&mut self, notice: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
-        let received = decoded(notice, REGISTRY_UNDERSTANDS);
+        let received = registry_reads(notice);
         let (_, application, named) = received.components().read::<(StopSharing, ForApplication, Registration)>()?;
         assert_eq!(application, for_application());
         for (registration, open) in &mut self.0 {
@@ -213,7 +213,7 @@ fn a_push_hands_over_the_stations_events_unchanged() -> Outcome {
     let pushed: Vec<Attested<Event>> = vec![Attested::from(Event::genesis_from_parts([7; 32], NOW as u64, operations))];
     let request = EnvelopeBuilder::new().add_must_understand(&PushEvents {})?.add(&Events::new(&pushed))?.encode();
 
-    let received = decoded(&request, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&request);
     let (_, events) = received.components().read::<(PushEvents, Events)>()?;
     let imported = events.read()?;
     assert_eq!(imported, pushed);
@@ -227,7 +227,7 @@ fn a_push_hands_over_the_stations_events_unchanged() -> Outcome {
 #[test]
 fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_order() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&GetCatalog {})?.encode();
-    decoded(&request, REGISTRY_UNDERSTANDS).components().read::<GetCatalog>()?;
+    registry_reads(&request).components().read::<GetCatalog>()?;
 
     let stocks = [stock("4x6", 101.6, Some(152.4)), stock("80mm Continuous", 80.0, None)];
     let formats = |list: &[&str]| MimeTypes::new(list.iter().map(|format| MimeType::new(*format).unwrap()).collect()).unwrap();
@@ -267,7 +267,7 @@ fn pylon_0_1_0s_registration_takes_the_same_components_without_an_application() 
     let assignment = ScopeAssignment { station: station_record().into() };
     let first = FirstScope { name: Name::new("Acme")? };
     let request = EnvelopeBuilder::new().add_must_understand(&Register {})?.add(&assignment)?.add(&first)?.encode();
-    let received = decoded(&request, REGISTRY_UNDERSTANDS);
+    let received = registry_reads(&request);
     let (_, read_assignment, read_first, application) =
         received.components().read::<(Register, ScopeAssignment, FirstScope, Option<ForApplication>)>()?;
     assert_eq!((read_assignment, read_first, application), (assignment, first, None));

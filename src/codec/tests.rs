@@ -136,7 +136,7 @@ pub(super) fn decoded(bytes: &[u8]) -> ReceivedEnvelope<'_> {
 /// The envelope's own components as `bytes` hold them, each by its id with its properties' ids, in
 /// the order of the ids.
 pub(super) fn held(bytes: &[u8]) -> Vec<(MintedId, Vec<MintedId>)> {
-    let index = super::structure::index(bytes, &Limits::default(), UNDERSTOOD).unwrap();
+    let index = super::structure::index(bytes, &Limits::default(), UNDERSTOOD, super::structure::Reading::Everywhere).unwrap();
     let properties = |component: &super::structure::ComponentEntry| {
         index.properties[component.properties.clone()].iter().map(|property| property.id).collect()
     };

@@ -11,7 +11,7 @@ use koinon_commons::{
 };
 
 use super::{
-    checks::{checked_slip, offered, opened_signed_request, reaches, Approval, Slip},
+    checks::{offered, opened_signed_request, reaches, under_slip, Approval, Slip},
     *,
 };
 
@@ -70,9 +70,9 @@ fn a_listing_under_a_slip_is_answered_with_a_record_for_each_device_it_covers() 
     let presented = weeks_slip(&[printer_record()])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
+    let received = station_reads(&request);
     received.components().read::<ListDevices>()?;
-    let (slip, approval) = checked_slip(&received, None)?;
+    let (slip, approval) = under_slip(&received, None)?;
     assert_eq!(listed_under(&slip, &approval)?, [(Some(printer_record()), true, true, false)]);
     Ok(())
 }
@@ -83,7 +83,7 @@ fn a_listing_under_a_slip_for_prints_alone_names_the_printers_alone() -> Outcome
     let presented = presented_slip(NOW - MINUTE, NOW + 60 * MINUTE, &[Print::ID], &[])?;
     let request = EnvelopeBuilder::new().add_must_understand(&ListDevices {})?.add_must_understand(&presented)?.encode();
 
-    let (slip, approval) = checked_slip(&decoded(&request, STATION_UNDERSTANDS), None)?;
+    let (slip, approval) = under_slip(&station_reads(&request), None)?;
     assert_eq!(listed_under(&slip, &approval)?, [(Some(printer_record()), true, true, false)]);
     Ok(())
 }
@@ -153,8 +153,8 @@ fn a_print_under_a_slip_carries_the_slip_beside_the_request() -> Outcome {
     request.add_must_understand(&presented)?;
     let request = request.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
-    let (slip, approval) = checked_slip(&received, None)?;
+    let received = station_reads(&request);
+    let (slip, approval) = under_slip(&received, None)?;
     let read = received.components().read::<ReadPrint>()?;
     assert!(reaches(&approval, Some(&slip), read.2.device.id(), Print::ID));
     print.read_back(read);
@@ -172,8 +172,8 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
     let device = ForDevice { device: scale_record().into() };
     let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.add_must_understand(&presented)?.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
-    let (slip, approval) = checked_slip(&received, None)?;
+    let received = station_reads(&request);
+    let (slip, approval) = under_slip(&received, None)?;
     assert!(slip.devices.is_none(), "the slip covers every device at the station");
     assert_eq!(received.components().read::<(Weigh, ForDevice)>()?.1, device);
     assert!(reaches(&approval, Some(&slip), scale_record(), Weigh::ID));
@@ -190,7 +190,7 @@ fn a_weigh_under_a_slip_for_the_whole_station_is_answered_with_the_reading() -> 
 fn a_retirement_handed_over_directly_is_acknowledged_whoever_hands_it_over() -> Outcome {
     let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW) })?);
     let request = EnvelopeBuilder::new().add_must_understand(&Retire {})?.add_must_understand(&retirement)?.encode();
-    let (_, read) = decoded(&request, STATION_UNDERSTANDS).components().read::<(Retire, SignedRetirement)>()?;
+    let (_, read) = station_reads(&request).components().read::<(Retire, SignedRetirement)>()?;
     assert_eq!(read, retirement);
     assert_eq!(read.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?.components().read::<Retirement>()?, Retirement { retired: at(NOW) });
     assert_done(&done())
@@ -203,8 +203,8 @@ fn a_claim_of_an_invitation_is_answered_with_the_station_and_the_devices_it_offe
     let claim = InvitationClaim { secret: InvitationSecret::from_bytes([0x5c; 16]), name: Name::new("Front desk Mac")? };
     let request = EnvelopeBuilder::new().add_must_understand(&ClaimInvitation {})?.add(&claim)?.encode();
 
-    let received = decoded(&request, STATION_UNDERSTANDS);
-    assert_eq!(checks::requested(&received.components())?, ClaimInvitation::ID);
+    let received = station_reads(&request);
+    assert_eq!(checks::requested(&received, &[])?, ClaimInvitation::ID);
     let (_, read) = received.components().read::<(ClaimInvitation, InvitationClaim)>()?;
     assert_eq!(read, claim);
 
