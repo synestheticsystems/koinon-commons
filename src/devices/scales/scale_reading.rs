@@ -1,13 +1,6 @@
-mod weight_status;
-mod weight_unit;
-mod weight_value;
-
-pub use weight_status::*;
-pub use weight_unit::*;
-pub use weight_value::*;
-
 use ankurah::Model;
 
+use super::{WeightStatus, WeightUnit, WeightValue};
 use crate::codec::Minted;
 
 /// What a scale read, in the unit it read in, and whether it had settled: the answer to a weigh,

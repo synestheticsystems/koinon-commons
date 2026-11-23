@@ -1,4 +1,5 @@
 use ankurah::{property::Ref, Model};
+use serde::{Deserialize, Serialize};
 
 use crate::codec::Minted;
 
@@ -7,7 +8,7 @@ use crate::codec::Minted;
 /// it.
 ///
 /// Who made it is the Ankurah Commons' `Created`, and its end `Closed`, on the same entity.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "registry.scope")]
 #[model(id = "8T5vX5X1wScs72KInBtY-jdWKJC_2-RQpOxpvWqJNLk")]
 #[model(no_ffi)]

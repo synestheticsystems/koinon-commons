@@ -4,8 +4,11 @@ use crate::codec::Minted;
 
 /// Asks a station which of its devices the request's authority reaches, so that a party learns
 /// the ids of the devices it may use with no registry to ask. It requires an authority: a
-/// `SignedRequest` it travels inside, which reaches every device the station offers, or a
-/// `PresentedSlip` beside it, which reaches the devices the slip covers, of the kinds it allows.
+/// `SignedRequest` it travels inside, or a `PresentedSlip` beside it, never both, since a slip
+/// inside a signed request is refused as `bad_request`. What either reaches is the station's
+/// approval of the application, narrowed by the slip when there is one, as `authority` sets out: a
+/// slip that allows any kind of request lets its party list the devices, and the listing names
+/// those of the kinds it allows.
 ///
 /// It is answered with a record for each device the authority reaches, under the device's entity
 /// id: `Device` with `Printer`, and with `Media` once someone has said what the printer is loaded

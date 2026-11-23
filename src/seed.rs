@@ -48,8 +48,10 @@ macro_rules! kept {
 /// The kept mint, as compiled into the crate: each model's `.akev` file, by its path under
 /// `src/`.
 const KEPT_MINT: &[(&str, &str)] = kept![
-    "authority/for_application.akev",
-    "authority/permission_slip.akev",
+    "authority/applications/for_application.akev",
+    "authority/applications/hosting.akev",
+    "authority/applications/invitation_claim.akev",
+    "authority/requests/claim_invitation.akev",
     "authority/requests/retire.akev",
     "authority/requests/void_slips.akev",
     "authority/restrictions/allows_requests.akev",
@@ -59,16 +61,19 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "authority/revocation/retirement.akev",
     "authority/revocation/slips_voided.akev",
     "authority/signatures/presented_slip.akev",
+    "authority/signatures/signed_hosting.akev",
     "authority/signatures/signed_request.akev",
     "authority/signatures/signed_retirement.akev",
+    "authority/slips/party.akev",
+    "authority/slips/permission_slip.akev",
     "catalog/printer_fingerprint.akev",
     "catalog/requests/get_catalog.akev",
     "devices/device.akev",
-    "devices/media.akev",
-    "devices/printer.akev",
+    "devices/printers/media.akev",
+    "devices/printers/printer.akev",
     "devices/requests/list_devices.akev",
-    "devices/scale.akev",
-    "devices/scale_reading.akev",
+    "devices/scales/scale.akev",
+    "devices/scales/scale_reading.akev",
     "devices/station.akev",
     "jobs/attempts/job_attempt.akev",
     "jobs/attempts/job_failure.akev",
@@ -84,7 +89,7 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "nodes/requests/push_events.akev",
     "registry/id_token_sign_in.akev",
     "registry/node_grant.akev",
-    "registry/registered_for.akev",
+    "registry/registration.akev",
     "registry/requests/hello.akev",
     "registry/requests/register.akev",
     "registry/requests/sign_in.akev",
@@ -111,10 +116,16 @@ fn kept_mint() -> Result<Vec<Attested<Event>>, SeedError> {
 mod tests {
     use super::*;
     use crate::{
+        authority::{AllowsRequests, AtStations, Expiry, ExpiryView, Party, PermissionSlip, PresentedSlip, PresentedSlipView, Signed},
+        codec::{EnvelopeBuilder, Minted, SealedEnvelope},
+        component_ids::ComponentIds,
         devices::*,
+        jobs::{requests::Print, *},
         mime_type::{MimeType, MimeTypes},
+        name::Name,
         namespaces::NAMESPACES,
         nodes::*,
+        public_key::{PublicKey, PublicKeys},
     };
     use ankurah::{
         core::schema::registration::RegistrationError,
@@ -125,10 +136,10 @@ mod tests {
         proto::EntityState,
         Context, EntityId, Model, ModelId, PermissiveAgent, PropertyId, View,
     };
-    use ankurah_commons::dimension::Dimension;
+    use ankurah_commons::{dimension::Dimension, property::Timestamp};
     use ankurah_storage_sled::SledStorageEngine;
     use ankurah_storage_sqlite::SqliteStorageEngine;
-    use serde::Serialize;
+    use ed25519_dalek::SigningKey;
     use std::sync::Arc;
 
     /// The storage engines a node of these models runs on: Sled, and SQLite, which a station
@@ -150,6 +161,10 @@ mod tests {
         seed(&node).await.unwrap();
         node.wait_ready().await.unwrap();
         node
+    }
+
+    fn key(seed: u8) -> PublicKey {
+        PublicKey::from(SigningKey::from_bytes(&[seed; 32]).verifying_key())
     }
 
     /// Registration binds a model through the catalog's local resolution before it would
@@ -190,17 +205,9 @@ mod tests {
         matched.remove(0)
     }
 
-    /// What a component holds, so that a component as created and as read compare whole.
-    fn held<T: Serialize>(component: &T) -> serde_json::Value {
-        serde_json::to_value(component).unwrap()
-    }
-
-    /// What the component `view` reads holds.
-    fn read<V: View>(view: &V) -> serde_json::Value
-    where
-        V::Model: Serialize,
-    {
-        held(&view.to_model().unwrap())
+    /// The component `view` reads, so that a component as created and as read compare whole.
+    fn read<V: View>(view: &V) -> V::Model {
+        view.to_model().unwrap()
     }
 
     /// Each kind of record a station makes: its own record, a printer with the stock it is
@@ -215,8 +222,8 @@ mod tests {
     async fn creates_and_fetches_each_kind_of_record_a_station_makes<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
         let node = seeded(engine).await;
         let context = node.context_async(DEFAULT_CONTEXT).await.unwrap();
-        let station = Station { public_key: "station key".to_owned(), name: "Pack bench 3".to_owned() };
-        let link = NodeLink { public_key: "server key".to_owned(), address: "https://pylon.example".to_owned(), name: "Server".to_owned() };
+        let station = Station { public_key: key(2), name: "Pack bench 3".to_owned() };
+        let link = NodeLink { public_key: key(4), address: "https://pylon.example".to_owned(), name: "Server".to_owned() };
         let transaction = context.begin();
         let station_id = transaction.create(&station).await.unwrap().id();
         transaction.create(&link).await.unwrap();
@@ -250,12 +257,82 @@ mod tests {
         transaction.commit().await.unwrap();
 
         let station_view: StationView = fetched(&context).await;
-        assert_eq!((station_view.id(), read(&station_view)), (station_id, held(&station)));
-        assert_eq!(read(&fetched::<NodeLinkView>(&context).await), held(&link));
+        assert_eq!((station_view.id(), read(&station_view)), (station_id, station));
+        assert_eq!(read(&fetched::<NodeLinkView>(&context).await), link);
         let (device_view, printer_view, media_view) = fetched::<(DeviceView, PrinterView, MediaView)>(&context).await;
-        assert_eq!([read(&device_view), read(&printer_view), read(&media_view)], [held(&printer_device), held(&printer), held(&media)]);
+        assert_eq!((read(&device_view), read(&printer_view), read(&media_view)), (printer_device, printer, media));
         let (device_view, scale_view) = fetched::<(DeviceView, ScaleView)>(&context).await;
-        assert_eq!([read(&device_view), read(&scale_view)], [held(&scale_device), held(&Scale {})]);
+        assert_eq!((read(&device_view), read(&scale_view)), (scale_device, Scale {}));
+    }
+
+    /// What a station keeps of a print it took, the components its request and its answer carried,
+    /// and what a registry keeps of a slip it issued, the carrier as the application's key signed
+    /// it with the slip's expiry beside it: each stored as a message carried it, and fetched back
+    /// whole, so that a record keeps a component as it travelled.
+    #[tokio::test]
+    async fn a_seeded_node_stores_a_stations_job_and_a_carried_slip_as_messages_carried_them() {
+        stores_a_stations_job_and_a_carried_slip(sled().await).await;
+        stores_a_stations_job_and_a_carried_slip(sqlite().await).await;
+    }
+
+    async fn stores_a_stations_job_and_a_carried_slip<SE: StorageEngine + Send + Sync + 'static>(engine: SE) {
+        let node = seeded(engine).await;
+        let context = node.context_async(DEFAULT_CONTEXT).await.unwrap();
+        let device = ForDevice { device: Ref::new(EntityId::from_bytes([11; 32])) };
+        let job = JobId { job: "order-1001-label".to_owned() };
+        let label = JobLabel { name: "Order 1001".to_owned(), asked_by: None };
+        let print = PrintJob {
+            document_format: MimeType::new("application/x-zpl2").unwrap(),
+            copies: Copies::new(2).unwrap(),
+            document_hash: DocumentHash::of(b"^XA^FDOrder 1001^FS^XZ"),
+        };
+        let attempt = JobAttempt {
+            state: AttemptState::Failed,
+            accepted: Timestamp::from_unix_millis(1_794_600_000_200),
+            finished: Some(Timestamp::from_unix_millis(1_794_600_001_200)),
+        };
+        let failure = JobFailure { code: JobFailure::DEVICE_TIMEOUT.to_owned(), message: "the printer did not answer".to_owned() };
+        let transaction = context.begin();
+        let created = transaction.create(&device).await.unwrap();
+        stage(&context, created.entity(), &job).await;
+        stage(&context, created.entity(), &label).await;
+        stage(&context, created.entity(), &print).await;
+        stage(&context, created.entity(), &attempt).await;
+        stage(&context, created.entity(), &failure).await;
+        transaction.commit().await.unwrap();
+
+        let expiry = Expiry { expires: Timestamp::from_unix_millis(1_795_204_800_000) };
+        let mut envelope = EnvelopeBuilder::new();
+        envelope
+            .add_must_understand(&PermissionSlip {
+                issued: Timestamp::from_unix_millis(1_794_600_000_000),
+                slip_id: EntityId::from_bytes([30; 32]),
+            })
+            .unwrap()
+            .add_must_understand(&Party { key: key(3), name: Name::new("Warehouse label PC").unwrap() })
+            .unwrap()
+            .add_must_understand(&AtStations { stations: PublicKeys::new(vec![key(2)]).unwrap() })
+            .unwrap()
+            .add_must_understand(&AllowsRequests { requests: ComponentIds::new(vec![Print::ID]).unwrap() })
+            .unwrap()
+            .add_must_understand(&expiry)
+            .unwrap();
+        let slip = PresentedSlip::sign(SealedEnvelope::new(envelope.encode()), &SigningKey::from_bytes(&[1; 32]));
+        let transaction = context.begin();
+        let created = transaction.create(&slip).await.unwrap();
+        stage(&context, created.entity(), &expiry).await;
+        transaction.commit().await.unwrap();
+
+        let (device_view, job_view, label_view, print_view, attempt_view, failure_view) =
+            fetched::<(ForDeviceView, JobIdView, JobLabelView, PrintJobView, JobAttemptView, JobFailureView)>(&context).await;
+        assert_eq!(
+            (read(&device_view), read(&job_view), read(&label_view), read(&print_view), read(&attempt_view), read(&failure_view)),
+            (device, job, label, print, attempt, failure)
+        );
+        let (slip_view, expiry_view) = fetched::<(PresentedSlipView, ExpiryView)>(&context).await;
+        let stored = read(&slip_view);
+        assert_eq!((&stored, read(&expiry_view)), (&slip, expiry));
+        assert_eq!(stored.verify(), Ok(()), "the stored slip's signature verifies over the bytes it keeps");
     }
 
     /// Every event and state the store holds for each entity of the kept mint, as stored.

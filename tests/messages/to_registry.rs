@@ -1,16 +1,32 @@
 //! What a station asks its registry, and what the registry answers.
 
 use ankurah::proto::{Attested, Event, Membership, ModelId, Operation, OperationSet};
-use koinon_commons::{catalog::names_driver, codec::RecordBuilder, public_key::PublicKeys};
+use koinon_commons::{catalog::names_driver, codec::RecordBuilder};
 
-use super::*;
+use super::{
+    checks::{place, Place},
+    *,
+};
 
 fn for_application() -> ForApplication {
-    ForApplication { key: PublicKey::from(application().verifying_key()) }
+    ForApplication { key: key_of(&application()) }
 }
 
-/// A station that has just connected learns what it is registered for, and the news it missed: a
-/// retirement it must apply, and a voiding of slips, which it may not drop.
+/// A registration under the grant whose record is `grant`, written at `registered`.
+fn registration(grant: u8, registered: i64) -> Registration {
+    Registration { grant: entity(grant).into(), registered: at(registered) }
+}
+
+/// A record of the hello's answer for one registration.
+fn registered(registration: &Registration) -> Result<RecordBuilder, Box<dyn Error>> {
+    let mut record = RecordBuilder::new(None);
+    record.add_must_understand(registration)?.add(&for_application())?;
+    Ok(record)
+}
+
+/// A station that has just connected learns which registrations the registry keeps for it, each
+/// under its grant, and the news it missed: a retirement it must apply, and a voiding of slips,
+/// which it may not drop.
 #[test]
 fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&Hello {})?.encode();
@@ -18,7 +34,7 @@ fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() 
     assert_eq!(received.must_understand(), [Hello::ID]);
     received.components().read::<Hello>()?;
 
-    let registered = RegisteredFor { applications: Some(PublicKeys::new(vec![for_application().key])?) };
+    let kept = registration(40, REGISTERED);
     let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW - 5 * MINUTE) })?);
     let voided = SlipsVoided { before: at(NOW - MINUTE) };
     let mut news = RecordBuilder::new(None);
@@ -26,20 +42,19 @@ fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() 
     let mut voiding = RecordBuilder::new(None);
     voiding.add_must_understand(&voided)?.add(&for_application())?;
     let mut answer = EnvelopeBuilder::new();
-    answer.add(&registered)?.add_record(news)?.add_record(voiding)?;
+    answer.add_record(registered(&kept)?)?.add_record(news)?.add_record(voiding)?;
     let answer = answer.encode();
 
     let received = decoded(&answer, REPLIES_UNDERSTOOD);
-    assert_eq!(received.components().read::<RegisteredFor>()?, registered);
     let records: Vec<_> = received.records().collect();
-    assert_eq!(records.len(), 2);
+    assert_eq!(records.len(), 3);
     assert!(records.iter().all(|record| record.entity().is_none()));
-    let read_retirement: SignedRetirement = records[0].components().read()?;
-    read_retirement.verify()?;
+    assert_eq!(records[0].components().read::<(Registration, ForApplication)>()?, (kept, for_application()));
+    let read_retirement: SignedRetirement = records[1].components().read()?;
     assert_eq!(read_retirement.signer, for_application().key);
-    let retired = read_retirement.content.decode(&Limits::default(), STATION_UNDERSTANDS)?;
+    let retired = read_retirement.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?;
     assert_eq!(retired.components().read::<Retirement>()?, Retirement { retired: at(NOW - 5 * MINUTE) });
-    assert_eq!(records[1].components().read::<(SlipsVoided, ForApplication)>()?, (voided, for_application()));
+    assert_eq!(records[2].components().read::<(SlipsVoided, ForApplication)>()?, (voided, for_application()));
     Ok(())
 }
 
@@ -86,7 +101,7 @@ fn a_sign_in_is_answered_with_the_person_and_the_scopes_they_may_register_in() -
 fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
     let assignment = ScopeAssignment { station: station_record().into() };
     let placement = Placement { scope: entity(20).into(), sub_scope: Some(entity(21).into()) };
-    let first = FirstScope { name: "Acme".into() };
+    let first = FirstScope { name: Name::new("Acme")? };
     let listed = EnvelopeBuilder::new()
         .add_must_understand(&Register {})?
         .add(&assignment)?
@@ -104,15 +119,88 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
     let mut must_understand = vec![Register::ID, ForApplication::ID];
     must_understand.sort();
     assert_eq!(received.must_understand(), must_understand);
-    let (_, read_assignment, read_placement, read_first, application) =
-        received.components().read::<(Register, ScopeAssignment, Option<Placement>, Option<FirstScope>, ForApplication)>()?;
-    assert_eq!((read_assignment, read_placement, read_first, application), (assignment.clone(), Some(placement), None, for_application()));
+    let (_, read_assignment, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
+    assert_eq!(
+        (read_assignment, place(&received.components())?, application),
+        (assignment.clone(), Place::Listed(placement), for_application())
+    );
 
     let received = decoded(&in_a_first_scope, REGISTRY_UNDERSTANDS);
-    let (_, read_assignment, read_placement, read_first, application) =
-        received.components().read::<(Register, ScopeAssignment, Option<Placement>, Option<FirstScope>, ForApplication)>()?;
-    assert_eq!((read_assignment, read_placement, read_first, application), (assignment, None, Some(first), for_application()));
-    assert_done(&done())
+    let (_, read_assignment, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
+    assert_eq!((read_assignment, place(&received.components())?, application), (assignment, Place::First(first), for_application()));
+    Ok(())
+}
+
+/// What a registry keeps of the station's registrations for the application: each under the grant
+/// it wrote for it, and whether that grant is still open.
+#[derive(Default)]
+struct Grants(Vec<(Registration, bool)>);
+
+impl Grants {
+    /// Registers the station under a new grant, `grant`, written at `registered`, and answers the
+    /// registration with it.
+    fn register(&mut self, grant: u8, registered: i64) -> Result<Vec<u8>, Box<dyn Error>> {
+        let written = registration(grant, registered);
+        self.0.push((written.clone(), true));
+        Ok(EnvelopeBuilder::new().add(&for_application())?.add_must_understand(&written)?.encode())
+    }
+
+    /// Ends the registration a notice that the station no longer shares names: its grant alone, if
+    /// it is still open, so that a notice under an old grant leaves a newer one open.
+    fn stop_sharing(&mut self, notice: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+        let received = decoded(notice, REGISTRY_UNDERSTANDS);
+        let (_, application, named) = received.components().read::<(StopSharing, ForApplication, Registration)>()?;
+        assert_eq!(application, for_application());
+        for (registration, open) in &mut self.0 {
+            if registration.grant == named.grant {
+                *open = false;
+            }
+        }
+        Ok(done())
+    }
+
+    fn open(&self) -> Vec<Registration> {
+        self.0.iter().filter(|(_, open)| *open).map(|(registration, _)| registration.clone()).collect()
+    }
+}
+
+/// The registration a station keeps from the registry's answer to its `Register`.
+fn kept(answer: &[u8]) -> Result<Registration, Box<dyn Error>> {
+    let (application, registration) = decoded(answer, REPLIES_UNDERSTOOD).components().read::<(ForApplication, Registration)>()?;
+    assert_eq!(application, for_application());
+    Ok(registration)
+}
+
+/// The notice that the station no longer shares with the application under `registration`.
+fn notice(registration: &Registration) -> Result<Vec<u8>, Box<dyn Error>> {
+    Ok(EnvelopeBuilder::new().add_must_understand(&StopSharing {})?.add(&for_application())?.add_must_understand(registration)?.encode())
+}
+
+/// A person removes the application and adds it again; the station's first notice, repeated after
+/// its answer was lost, arrives after the new registration, and leaves that registration open,
+/// since it names the grant it was about.
+#[test]
+fn a_notice_that_arrives_late_ends_its_own_registration_and_leaves_a_newer_one_open() -> Outcome {
+    let mut grants = Grants::default();
+    let first = kept(&grants.register(40, NOW - 10 * MINUTE)?)?;
+    let removal = notice(&first)?;
+    assert_done(&grants.stop_sharing(&removal)?)?;
+    let second = kept(&grants.register(41, NOW - 5 * MINUTE)?)?;
+    assert_ne!(first.grant, second.grant, "a registration after a removal is under a new grant");
+
+    assert_done(&grants.stop_sharing(&removal)?)?;
+    assert_eq!(grants.open(), std::slice::from_ref(&second));
+
+    let mut hello = EnvelopeBuilder::new();
+    for open in grants.open() {
+        hello.add_record(registered(&open)?)?;
+    }
+    let hello = hello.encode();
+    let received = decoded(&hello, REPLIES_UNDERSTOOD);
+    let listed: Vec<Registration> =
+        received.records().map(|record| record.components().read::<Registration>()).collect::<Result<_, _>>()?;
+    assert_eq!(listed, [second]);
+    Ok(())
 }
 
 /// The events of the station's own records reach the registry as Ankurah encodes them, each with
@@ -163,8 +251,8 @@ fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_or
     let received = decoded(&answer, REPLIES_UNDERSTOOD);
     let read: Vec<(Option<Media>, Option<PrinterFingerprint>)> =
         received.records().map(|record| record.components().read()).collect::<Result<_, _>>()?;
-    let read_stocks: Vec<serde_json::Value> = read.iter().filter_map(|(stock, _)| stock.as_ref().map(json)).collect();
-    assert_eq!(read_stocks, stocks.iter().map(json).collect::<Vec<_>>());
+    let read_stocks: Vec<Media> = read.iter().filter_map(|(stock, _)| stock.clone()).collect();
+    assert_eq!(read_stocks, stocks);
     let read_fingerprints: Vec<PrinterFingerprint> = read.into_iter().filter_map(|(_, fingerprint)| fingerprint).collect();
     assert_eq!(read_fingerprints, fingerprints);
     let deciding = read_fingerprints.iter().find(|fingerprint| names_driver(&fingerprint.driver, "Zebra TLP2824 Plus")).unwrap();
@@ -172,20 +260,12 @@ fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_or
     Ok(())
 }
 
-#[test]
-fn a_notice_that_the_station_no_longer_shares_names_the_application() -> Outcome {
-    let request = EnvelopeBuilder::new().add_must_understand(&StopSharing {})?.add(&for_application())?.encode();
-    let received = decoded(&request, REGISTRY_UNDERSTANDS);
-    assert_eq!(received.components().read::<(StopSharing, ForApplication)>()?.1, for_application());
-    assert_done(&done())
-}
-
 /// What Pylon 0.1.0's stations ask, a registration with no application among it, takes the same
 /// components, so that the new protocol loses nothing the old one says.
 #[test]
 fn pylon_0_1_0s_registration_takes_the_same_components_without_an_application() -> Outcome {
     let assignment = ScopeAssignment { station: station_record().into() };
-    let first = FirstScope { name: "Acme".into() };
+    let first = FirstScope { name: Name::new("Acme")? };
     let request = EnvelopeBuilder::new().add_must_understand(&Register {})?.add(&assignment)?.add(&first)?.encode();
     let received = decoded(&request, REGISTRY_UNDERSTANDS);
     let (_, read_assignment, read_first, application) =

@@ -40,8 +40,11 @@ fn id(bytes: [u8; 32]) -> Vec<u8> {
     [head(2, 32), bytes.to_vec()].concat()
 }
 
+/// A component's id, with each of its properties' ids and that property's value, already encoded.
+type Held = ([u8; 32], Vec<([u8; 32], Vec<u8>)>);
+
 /// A map of components in the order given, each property's value already encoded.
-fn components(held: &[([u8; 32], Vec<([u8; 32], Vec<u8>)>)]) -> Vec<u8> {
+fn components(held: &[Held]) -> Vec<u8> {
     let mut out = head(5, held.len() as u64);
     for (component, properties) in held {
         out.extend(id(*component));

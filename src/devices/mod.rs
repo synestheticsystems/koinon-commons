@@ -1,18 +1,17 @@
-//! Printers and scales, a stock of the kind a printer is loaded with, the station that offers
-//! them, what a scale reads, and a party's request for the devices it may use.
+//! Printers and scales, the station that offers them, and a party's request for the devices it may
+//! use: a device's own record and lists of devices by their records, what a printer is and is
+//! loaded with, and what a scale is and reads.
 
 mod device;
-mod media;
-mod printer;
-mod scale;
-mod scale_reading;
+mod device_ids;
+mod printers;
+mod scales;
 mod station;
 
 pub mod requests;
 
 pub use device::*;
-pub use media::*;
-pub use printer::*;
-pub use scale::*;
-pub use scale_reading::*;
+pub use device_ids::*;
+pub use printers::*;
+pub use scales::*;
 pub use station::*;

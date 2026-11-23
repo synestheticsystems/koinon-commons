@@ -19,7 +19,8 @@ pub const NAMESPACES: &[Namespace] = &[
         name: "authority",
         models: &[
             authority::ForApplication::descriptor,
-            authority::PermissionSlip::descriptor,
+            authority::Hosting::descriptor,
+            authority::InvitationClaim::descriptor,
             authority::AllowsRequests::descriptor,
             authority::AtDevices::descriptor,
             authority::AtStations::descriptor,
@@ -27,8 +28,12 @@ pub const NAMESPACES: &[Namespace] = &[
             authority::Retirement::descriptor,
             authority::SlipsVoided::descriptor,
             authority::PresentedSlip::descriptor,
+            authority::SignedHosting::descriptor,
             authority::SignedRequest::descriptor,
             authority::SignedRetirement::descriptor,
+            authority::Party::descriptor,
+            authority::PermissionSlip::descriptor,
+            authority::requests::ClaimInvitation::descriptor,
             authority::requests::Retire::descriptor,
             authority::requests::VoidSlips::descriptor,
         ],
@@ -77,7 +82,7 @@ pub const NAMESPACES: &[Namespace] = &[
         models: &[
             registry::IdTokenSignIn::descriptor,
             registry::NodeGrant::descriptor,
-            registry::RegisteredFor::descriptor,
+            registry::Registration::descriptor,
             registry::FirstScope::descriptor,
             registry::Placement::descriptor,
             registry::Registrable::descriptor,
@@ -176,7 +181,8 @@ mod tests {
         for &(namespace, model, _) in &listed {
             assert!(models.entry(namespace.to_owned()).or_default().insert(model.to_owned()), "{model} is listed twice");
         }
-        let declared: Models = declared(&sources()).into_iter().map(|(namespace, models)| (namespace, models.into_keys().collect())).collect();
+        let declared: Models =
+            declared(&sources()).into_iter().map(|(namespace, models)| (namespace, models.into_keys().collect())).collect();
         assert_eq!(models, declared);
         let labels: BTreeSet<&str> = listed.iter().map(|&(_, _, label)| label).collect();
         assert_eq!(labels.len(), listed.len(), "a label is listed twice");

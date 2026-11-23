@@ -1,4 +1,5 @@
 use ankurah::{property::Ref, Model};
+use serde::{Deserialize, Serialize};
 
 use super::Scope;
 use crate::codec::Minted;
@@ -11,7 +12,7 @@ use crate::codec::Minted;
 /// A person, a key or a station placed in a scope as a whole reaches every one of its sub-scopes:
 /// the person or the key acts in each, and the station serves each. One placed in a sub-scope
 /// reaches that sub-scope alone.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "registry.placement")]
 #[model(id = "OEr6KwWBmwnonz9izlHd_dFmH2FnZfnAxObTUp2kY0g")]
 #[model(no_ffi)]

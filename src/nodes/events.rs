@@ -2,6 +2,7 @@ use ankurah::{
     proto::{Attested, Event},
     Model,
 };
+use bincode::Options;
 
 use crate::codec::Minted;
 
@@ -11,9 +12,11 @@ use crate::codec::Minted;
 /// the same history. A push of events carries it; the receiver imports the events, and keeps no
 /// record of this component.
 ///
-/// The events are encoded together, as one list, by bincode 1 with its default options, as
-/// Ankurah's own messages encode them, and the codec never reads inside them. So the two ends of
-/// a push build against the same revision of Ankurah.
+/// The events are encoded together, as one list, by bincode 1 in the form its `serialize` gives,
+/// as Ankurah's own messages encode them: integers of fixed width, little-endian. The codec never
+/// reads inside them, so the two ends of a push build against the same revision of Ankurah. A
+/// list followed by any byte more does not read, so that the bytes a receiver imports are all the
+/// sender gave.
 #[derive(Model, Minted, Debug, Clone, PartialEq)]
 #[model(label = "nodes.events")]
 #[model(id = "aoHfYIvYtO1Q8Dl82g4dzSeu7pmFL5uwx0s40VaVmhc")]
@@ -27,13 +30,20 @@ pub struct Events {
 impl Events {
     /// `events` in the order given, which puts each event after its parents.
     pub fn new(events: &[Attested<Event>]) -> Self {
-        Events { events: bincode::serialize(events).expect("bincode encodes every attested event") }
+        Events { events: encoding().serialize(events).expect("bincode encodes every attested event") }
     }
 
     /// The events, in the order the sender gave them.
     pub fn read(&self) -> Result<Vec<Attested<Event>>, UnreadableEvents> {
-        bincode::deserialize(&self.events).map_err(UnreadableEvents)
+        encoding().deserialize(&self.events).map_err(UnreadableEvents)
     }
+}
+
+/// The form of the events' bytes: what `bincode::serialize` writes, read back with nothing left
+/// over. Bincode's own functions allow bytes after the list, and its default options write
+/// integers in another form, so each part is named.
+fn encoding() -> impl Options {
+    bincode::DefaultOptions::new().with_fixint_encoding().with_little_endian().reject_trailing_bytes()
 }
 
 /// Why the bytes of an [`Events`] are no list of events this build of Ankurah reads.
@@ -72,11 +82,27 @@ mod tests {
         );
     }
 
+    // Ankurah's own messages encode events so, and a registry built on either reads what the other
+    // writes.
+    #[test]
+    fn the_events_are_in_the_form_bincodes_serialize_gives() {
+        let events = events();
+        assert_eq!(Events::new(&events).events, bincode::serialize(&events).unwrap());
+    }
+
     #[test]
     fn bytes_that_are_no_list_of_events_do_not_read() {
         let mut bytes = Events::new(&events()).events;
         bytes.truncate(bytes.len() - 1);
         assert!(Events { events: bytes }.read().is_err());
         assert!(Events { events: vec![0xff; 8] }.read().is_err());
+    }
+
+    #[test]
+    fn a_list_of_events_followed_by_a_byte_more_does_not_read() {
+        let mut bytes = Events::new(&events()).events;
+        bytes.push(0);
+        let read = Events { events: bytes }.read();
+        assert!(read.is_err(), "{read:?}");
     }
 }

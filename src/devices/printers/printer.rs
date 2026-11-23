@@ -5,7 +5,7 @@ use crate::{codec::Minted, mime_type::MimeTypes};
 
 /// That the device on this entity prints, as the computer's print system describes it.
 /// What it is loaded with is `Media`, on the same entity.
-#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "devices.printer")]
 #[model(id = "tdb_BWOhavVLjE6j3fg5AxGEvVYxVpy7vSx3IdvCxzE")]
 #[model(no_ffi)]

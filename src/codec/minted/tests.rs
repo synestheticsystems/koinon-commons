@@ -14,6 +14,7 @@ use crate::{
     devices::{Device, Media, Printer, Scale, Station},
     mime_type::{MimeType, MimeTypes},
     nodes::NodeLink,
+    public_key::PublicKey,
 };
 
 /// The ids Ankurah's descriptor holds for `C`: the model's, and each property's with whether it is
@@ -62,8 +63,9 @@ fn every_model_of_the_commons_travels_under_the_ids_ankurahs_descriptor_holds() 
     };
     travels_as_described(&media, &Media { height: None, ..media.clone() });
     travels_as_described(&Scale {}, &Scale {});
-    let station = Station { public_key: "k".repeat(64), name: "Pack bench 3".into() };
+    let key = |seed| PublicKey::from(ed25519_dalek::SigningKey::from_bytes(&[seed; 32]).verifying_key());
+    let station = Station { public_key: key(2), name: "Pack bench 3".into() };
     travels_as_described(&station, &station);
-    let link = NodeLink { public_key: "k".repeat(64), address: "https://registry.example.com".into(), name: "Registry".into() };
+    let link = NodeLink { public_key: key(4), address: "https://registry.example.com".into(), name: "Registry".into() };
     travels_as_described(&link, &link);
 }

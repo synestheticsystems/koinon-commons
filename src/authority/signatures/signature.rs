@@ -2,9 +2,9 @@ use std::fmt;
 
 use ankurah::{property::PropertyError, value::Value, Property};
 
-use crate::hex::lower_hex;
+use crate::stored_forms::lower_hex;
 
-/// An Ed25519 signature, 64 bytes, as a carrier holds its signer's over the envelope it carries.
+/// An Ed25519 signature, 64 bytes, as a carrier carries its signer's over its envelope.
 /// Stored and carried as a binary value; one of any other length is no signature.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Signature([u8; 64]);

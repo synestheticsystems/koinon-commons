@@ -11,24 +11,33 @@ use crate::{
 /// it sends a station on the direct path; the party's connection to the station proves the party's
 /// key, so no one else can use the slip, and the request itself is not signed.
 ///
-/// The envelope it carries holds `PermissionSlip` and the restrictions that slip's documentation
-/// lists, each listed as a component a receiver must understand. A station takes a request under
-/// the slip when, in this order:
+/// Its envelope carries `PermissionSlip`, the slip's `Party` and the restrictions that slip's
+/// documentation lists, each listed as a component a receiver must understand. A station takes a
+/// request under the slip when, in this order:
 ///
 /// 1. the slip's signer is an application the station shares its devices with;
-/// 2. the signature holds ([`Signed::verify`]);
-/// 3. the envelope decodes, and the station understands every component it lists as one a
-///    receiver must understand;
-/// 4. the slip's party is the key the connection proves;
-/// 5. the slip was issued since the station's person last said yes to the application and since
-///    the application's slips were last voided, no later than now, and expires no more than
-///    `PermissionSlip::MAX_LIFE_MS` after its issue;
-/// 6. its `Expiry` has not passed;
-/// 7. its `AtStations` names this station, and its `AtDevices`, when it has one, the device the
+/// 2. the slip opens ([`Signed::open`]): its signature verifies over the bytes as they arrived, and
+///    then its envelope decodes for a reader of slips, which understands a slip's body, its party
+///    and its restrictions and nothing else, so that any other component the slip lists as one a
+///    receiver must understand refuses it;
+/// 3. its `Party` is the key the connection proves;
+/// 4. it was issued no later than now, allowing for the drift of clocks
+///    ([`PermissionSlip::is_issued_after`]), runs no longer than a station honours a slip for
+///    ([`PermissionSlip::runs_too_long`]), and was issued no earlier than the moment its registry
+///    wrote the station's registration for its application, nor than the moment it last voided
+///    the application's slips, each compared exactly ([`PermissionSlip::is_issued_before`]);
+/// 5. its `Expiry` has not passed;
+/// 6. its `AtStations` names this station, and its `AtDevices`, when it has one, the device the
 ///    request names;
-/// 8. and its `AllowsRequests` lists the request component.
+/// 7. and its `AllowsRequests` lists the request component, or the request is a `ListDevices`,
+///    which is answered with the devices of the kinds the slip allows.
 ///
-/// A sender lists the carrier as a component a receiver must understand.
+/// The devices such a request reaches are those that `authority` sets out. A sender lists the
+/// carrier as a component a receiver must understand.
+///
+/// [`PermissionSlip::is_issued_after`]: crate::authority::PermissionSlip::is_issued_after
+/// [`PermissionSlip::runs_too_long`]: crate::authority::PermissionSlip::runs_too_long
+/// [`PermissionSlip::is_issued_before`]: crate::authority::PermissionSlip::is_issued_before
 #[derive(Model, Minted, Debug, Clone, PartialEq)]
 #[model(label = "authority.presented_slip")]
 #[model(id = "yk-eP-hkf0aNCxmxLmpzYtQoJytOrkndpPNRSzts12g")]

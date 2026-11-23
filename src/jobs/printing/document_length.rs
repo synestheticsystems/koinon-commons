@@ -2,7 +2,10 @@ use std::fmt;
 
 use ankurah::{property::PropertyError, value::Value, Property};
 
-/// How many bytes a document has. Stored as an `i64`; a number below zero does not read.
+/// How many bytes a document has: what a print's `DocumentFollows` says follows the request's
+/// envelope on its stream, so that a station reads exactly that many and no more, and refuses a
+/// length beyond the most it takes before it reads any. Stored as an `i64`; a number below zero
+/// does not read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct DocumentLength(u64);
 

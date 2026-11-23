@@ -1,0 +1,43 @@
+[enZdC2C2ri1IUqNd1JFiQ5Ndq_CuxFFx7Bjtwmp5Svs]
+nonce: p8WBj5vRE3nkZyvY99f09YfFcdN-a87_nLDT-I7Rdv0, timestamp: 2026-11-23T03:59:00.581Z
+lww: { label: "authority.party", name: "Party" }, member: system:model
+
+[r2TCNcuAcInpFWlfFpB8CVMbUrMxohSBbxlSDvQ7tLw]
+nonce: wJhMcUp0K08JMkkZ-HgmFpnEP0gr3FrR9rBgtjoxEr0, timestamp: 2026-11-23T03:59:00.581Z
+lww: {
+    name: "key"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.party
+    target_model: none
+}
+member: system:property
+
+[eImLeQEWhQ2m6cG-QegWoj56SNlTwMk8Jp-6MlNY-yI]
+nonce: tSJjoj0y2LAp9odgXwLlFakJEiYQB0cLCKCogib8gWA, timestamp: 2026-11-23T03:59:00.581Z
+lww: {
+    model: $authority.party
+    property: $key
+    optional: false
+}
+member: system:model-property
+
+[v6uFglx7KyVRHcMdfDV6wMswpZyZARsDNdb2jTlmL7A]
+nonce: jnK7xhOuJnJqjc_qwbAfIA4J-JGtqs8XGZr2degc5D4, timestamp: 2026-11-23T03:59:00.581Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.party
+    target_model: none
+}
+member: system:property
+
+[X33UTSrQ7S8Zlw8uEm4yfU9gnWbkcPxV9iJmtnSHiWk]
+nonce: D4sndw5_5rrN4H44-gMZXqNKomcVAZW-YD_EP_bTKLo, timestamp: 2026-11-23T03:59:00.581Z
+lww: {
+    model: $authority.party
+    property: $name
+    optional: false
+}
+member: system:model-property

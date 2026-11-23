@@ -1,4 +1,5 @@
 use ankurah::Model;
+use serde::{Deserialize, Serialize};
 
 use crate::{codec::Minted, mime_type::MimeTypes};
 
@@ -24,7 +25,7 @@ use crate::{codec::Minted, mime_type::MimeTypes};
 ///
 /// Who added it is the Ankurah Commons' `Created`, and its withdrawal `Closed`, on the same
 /// entity. A record the registry started with was added by no one and carries no `Created`.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "catalog.printer_fingerprint")]
 #[model(id = "HER0P_9s7PPq1hpuHBxuqG1HZuvxqoEn56XdVpv9lu0")]
 #[model(no_ffi)]

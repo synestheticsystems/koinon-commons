@@ -1,0 +1,63 @@
+[vb5dzEeChBzokDcK2Ugn2Gz6Yxq5NZS6DkUy9TDqg2o]
+nonce: wBtL1LySwoPVgJcUkO3c6QK7rwD_qVxKfAOdUzAG4LY, timestamp: 2026-11-23T03:59:00.580Z
+lww: { label: "authority.signed_hosting", name: "SignedHosting" }, member: system:model
+
+[xw9ja_uy5wtzExttj8M_F3jCdRL9TsW0mBqFfjzZaPw]
+nonce: 9sTpBNBns1ZPXBJW3jc3DrQMjwtv4osrbQJGJAr3YUs, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    name: "content"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.signed_hosting
+    target_model: none
+}
+member: system:property
+
+[fsPUS2cQbX295MIVWKZgx6ec2mWGfF95auBACbPWdL8]
+nonce: ExmwR6Uxf5ckdCBc8WVvdBtshofr17wFN6cjSjBIeXg, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    model: $authority.signed_hosting
+    property: $content
+    optional: false
+}
+member: system:model-property
+
+[QsqeqZ8LQgZfQsd2crnkmuZwPwfPa1c4EUHftwbpZBs]
+nonce: nNFEgR4-Ex-mNXGlEvqKnSgEJ4rGtMxHq6ag2AnXy9w, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    name: "signer"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.signed_hosting
+    target_model: none
+}
+member: system:property
+
+[wTYbKftupbSvo3F4w50LFlfkp12Gv3i4ZQB16l99M9s]
+nonce: SXGS5qjyvTEayxiBX_tCbbw6fFntfogce-rYJKLHbKw, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    model: $authority.signed_hosting
+    property: $signer
+    optional: false
+}
+member: system:model-property
+
+[L_lAjIlk4HS3tqvac-uLqc0RmJLGmPpeYradDzPRJyg]
+nonce: xNq5yn10fNuJXG3gW0ZWCWk05PIzMV2zFNmQG3AcmzQ, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    name: "signature"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.signed_hosting
+    target_model: none
+}
+member: system:property
+
+[-A_APhtC2Lv7PqOODNEPncDWGUEeWoTe26d-vjrDpbQ]
+nonce: PrSaVQOmKFnzlTuyt3x3cjybYTsoUIx5o8lmzL8hy9Y, timestamp: 2026-11-23T03:59:00.580Z
+lww: {
+    model: $authority.signed_hosting
+    property: $signature
+    optional: false
+}
+member: system:model-property

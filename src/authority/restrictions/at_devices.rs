@@ -1,10 +1,9 @@
 use ankurah::Model;
 
-use super::DeviceIds;
-use crate::codec::Minted;
+use crate::{codec::Minted, devices::DeviceIds};
 
 /// Narrows a permission slip to these devices, at the stations its `AtStations` names, so that a
-/// party may use some of a station's devices and not the rest. A slip without it holds for every
+/// party may use some of a station's devices and not the rest. A slip without it covers every
 /// device at its stations, those a station adds later among them. Each device's record was made by
 /// its own station, so a device named here at a station the slip does not name is covered by
 /// nothing.

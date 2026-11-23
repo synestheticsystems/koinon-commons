@@ -21,8 +21,10 @@ ed25519-dalek         = "3"
 # A float in an envelope, in the shortest width that keeps every bit of it.
 half                  = "2"
 serde                 = { version = "1", features = ["derive"] }
-# The JSON of a json-typed property, which an envelope carries as CBOR; the seed's tests also
-# compare a record as created and as fetched through it.
+# The SHA-256 by which a print names the document that follows its request. The codec's tests
+# also sign envelopes with a stand-in made of it.
+sha2                  = "0.10"
+# The JSON of a json-typed property, which an envelope carries as CBOR.
 serde_json            = "1"
 thiserror             = "2"
 
@@ -30,8 +32,6 @@ thiserror             = "2"
 # Durable nodes to seed, on the two storage engines the Ankurah Commons' tests use.
 ankurah-storage-sled   = { workspace = true }
 ankurah-storage-sqlite = { workspace = true }
-# A stand-in for a signature over an envelope's bytes.
-sha2                   = "0.10"
 # The guard on the list of models reads the namespaces' sources.
 syn                    = { workspace = true }
 tokio                  = { version = "1", features = ["macros", "rt"] }

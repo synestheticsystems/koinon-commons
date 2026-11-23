@@ -1,16 +1,25 @@
 use std::fmt;
 
 use ankurah::{property::PropertyError, value::Value, Property};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
-use crate::hex::{from_lower_hex, lower_hex};
+use crate::stored_forms::{from_lower_hex, lower_hex};
 
 /// The SHA-256 of a document's bytes, by which a print names the document that follows its
 /// request, before the document arrives. Stored as its 64 lower-case hexadecimal digits; a text of
-/// any other shape does not read.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+/// any other shape does not read. In JSON, as `PrintJob` derives it, a string of that text.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
 pub struct DocumentHash([u8; 32]);
 
 impl DocumentHash {
+    /// The hash of `document`, as its sender names it in a print and a station checks the bytes
+    /// that follow the print's envelope against it.
+    pub fn of(document: &[u8]) -> Self {
+        DocumentHash(Sha256::digest(document).into())
+    }
+
     pub fn from_bytes(bytes: [u8; 32]) -> Self {
         DocumentHash(bytes)
     }
@@ -47,6 +56,20 @@ impl fmt::Debug for DocumentHash {
 #[error("{0:?} is no SHA-256 in 64 lower-case hexadecimal digits")]
 pub struct NotADocumentHash(pub String);
 
+impl TryFrom<String> for DocumentHash {
+    type Error = NotADocumentHash;
+
+    fn try_from(text: String) -> Result<Self, NotADocumentHash> {
+        DocumentHash::from_text(&text)
+    }
+}
+
+impl From<DocumentHash> for String {
+    fn from(hash: DocumentHash) -> Self {
+        hash.text()
+    }
+}
+
 impl Property for DocumentHash {
     const VALUE_TYPE: &'static str = "string";
 
@@ -74,6 +97,23 @@ mod tests {
         let stored = hash.into_value().unwrap();
         assert_eq!(stored, Some(Value::String("ab".repeat(32))));
         assert_eq!(DocumentHash::from_value(stored).unwrap(), hash);
+    }
+
+    // The SHA-256 of "abc", as FIPS 180-2 gives it, so that a sender in any language names a
+    // document as a station of this crate does.
+    #[test]
+    fn a_documents_hash_is_its_sha_256() {
+        assert_eq!(DocumentHash::of(b"abc").text(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    }
+
+    // The JSON form a print job's hash had before the hash had a type of its own, a string of its
+    // text, so that a print job's JSON reads as before.
+    #[test]
+    fn a_hash_is_a_json_string_of_its_text_and_one_of_another_shape_does_not_read() {
+        let hash = DocumentHash::from_bytes([0xab; 32]);
+        assert_eq!(serde_json::to_value(hash).unwrap(), serde_json::json!("ab".repeat(32)));
+        assert_eq!(serde_json::from_value::<DocumentHash>(serde_json::json!("ab".repeat(32))).unwrap(), hash);
+        assert!(serde_json::from_value::<DocumentHash>(serde_json::json!("AB".repeat(32))).is_err());
     }
 
     #[test]

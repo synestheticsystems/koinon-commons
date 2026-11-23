@@ -3,12 +3,12 @@ use ankurah::Model;
 use crate::codec::Minted;
 
 /// Hands a registry the sign-in of a person who may register the station there, so that the
-/// registry holds that person on the connection for a `Register`, until the connection closes.
-/// It requires `IdTokenSignIn`.
+/// registry keeps that person signed in on the connection for a `Register`, until the connection
+/// closes. It requires `IdTokenSignIn`.
 ///
 /// It is answered with `SignedInPerson`, and a record for each scope and sub-scope the person may
-/// register the station in, under its entity id, holding `Scope` and `Registrable`. Where the
-/// person may register only in some of a scope's sub-scopes, that scope comes as a record holding
+/// register the station in, under its entity id, carrying `Scope` and `Registrable`. Where the
+/// person may register only in some of a scope's sub-scopes, that scope comes as a record carrying
 /// `Scope` alone, so that the station can show the sub-scopes under its name. A person who is a
 /// member of no scope gets no record, and may name a `FirstScope` instead. A token the registry
 /// does not take is refused as `credential_refused`, and the person signs in again.

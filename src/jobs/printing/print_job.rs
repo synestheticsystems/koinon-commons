@@ -1,4 +1,5 @@
 use ankurah::Model;
+use serde::{Deserialize, Serialize};
 
 use super::{Copies, DocumentHash};
 use crate::{codec::Minted, mime_type::MimeType};
@@ -12,7 +13,7 @@ use crate::{codec::Minted, mime_type::MimeType};
 /// The document itself is not kept. A registry passes a job on only to a station connected to it
 /// at that moment, and refuses the job when the station is not, so it never holds a document to
 /// send later; the caller repeats the request once the station is back.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "jobs.print_job")]
 #[model(id = "nQF-f7gcJIaahDZ02CJzwtanB7_YAW1t9NK1E0Ng-Nw")]
 #[model(no_ffi)]
@@ -31,4 +32,23 @@ pub struct PrintJob {
     #[active_type(LWW)]
     #[property(id = "Z7r75Ma_rNFuTBAwbvGmB3GlALeAzz7CGFpkVlWMxc0")]
     pub document_hash: DocumentHash,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // The JSON form a print job had in Pylon's own model, before the Commons held it, field by
+    // field, so that what Pylon's code reads and writes of one reads as before.
+    #[test]
+    fn a_print_job_is_written_in_json_as_pylons_own_model_wrote_one() {
+        let json = serde_json::json!({ "document_format": "application/x-zpl2", "copies": 2, "document_hash": "ab".repeat(32) });
+        let print = PrintJob {
+            document_format: MimeType::new("application/x-zpl2").unwrap(),
+            copies: Copies::new(2).unwrap(),
+            document_hash: DocumentHash::from_bytes([0xab; 32]),
+        };
+        assert_eq!(serde_json::to_value(&print).unwrap(), json);
+        assert_eq!(serde_json::from_value::<PrintJob>(json).unwrap(), print);
+    }
 }

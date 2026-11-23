@@ -10,9 +10,10 @@ use super::{DecodeError, Limits, MintedId, ReceivedEnvelope};
 mod tests;
 
 /// An envelope's bytes, carried as a property of a component of another envelope. A receiver
-/// checks a signature against [`SealedEnvelope::as_bytes`], and only then decodes them. The
-/// envelope's must-understand list concerns whoever reads it, not whoever carries it. Stored, it is
-/// a binary value.
+/// reads them through the carrier's `Signed::open`, which checks the signature against
+/// [`SealedEnvelope::as_bytes`] and only then decodes them, so that no receiver can read them
+/// first. The envelope's must-understand list concerns whoever reads it, not whoever carries it.
+/// Stored, it is a binary value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SealedEnvelope(Vec<u8>);
 
@@ -26,8 +27,9 @@ impl SealedEnvelope {
         &self.0
     }
 
-    /// The envelope these bytes hold, as `ReceivedEnvelope::decode` reads one.
-    pub fn decode(&self, limits: &Limits, understood: &[MintedId]) -> Result<ReceivedEnvelope<'_>, DecodeError> {
+    /// The envelope these bytes hold, as `ReceivedEnvelope::decode` reads one: for a carrier's
+    /// `Signed::open` alone, which verifies its signature first.
+    pub(crate) fn decode(&self, limits: &Limits, understood: &[MintedId]) -> Result<ReceivedEnvelope<'_>, DecodeError> {
         ReceivedEnvelope::decode(&self.0, limits, understood)
     }
 }

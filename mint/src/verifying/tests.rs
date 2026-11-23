@@ -56,7 +56,7 @@ fn kept_public_key() -> &'static str {
 #[model(no_ffi)]
 pub struct Station {
     #[active_type(LWW)]
-    pub public_key: String,
+    pub public_key: koinon_commons::public_key::PublicKey,
     #[active_type(LWW)]
     pub name: String,
 }

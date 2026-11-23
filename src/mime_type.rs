@@ -6,10 +6,12 @@ use std::fmt;
 use ankurah::{property::PropertyError, value::Value, Property};
 use serde::{Deserialize, Serialize};
 
+use crate::stored_forms::first_repeat;
+
 /// A MIME type: a type and a subtype without parameters, in lower case, of the characters a
 /// registered name may hold (RFC 6838), such as `application/pdf`. MIME types compare without
 /// regard to case, so a `MimeType` keeps one spelling of each. Stored as its text.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
 pub struct MimeType(String);
 
@@ -102,10 +104,8 @@ impl MimeTypes {
         if types.is_empty() {
             return Err(NotMimeTypes::Empty);
         }
-        for (index, mime_type) in types.iter().enumerate() {
-            if types[..index].contains(mime_type) {
-                return Err(NotMimeTypes::Twice(mime_type.clone()));
-            }
+        if let Some(repeated) = first_repeat(&types) {
+            return Err(NotMimeTypes::Twice(repeated.clone()));
         }
         Ok(MimeTypes(types))
     }

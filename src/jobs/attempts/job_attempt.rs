@@ -4,7 +4,7 @@ use ankurah_commons::property::Timestamp;
 use super::AttemptState;
 use crate::codec::Minted;
 
-/// Where a job stands: its latest attempt, which is recorded, sent or failed, when that attempt
+/// Where a job stands: its latest attempt, which is accepted, sent or failed, when that attempt
 /// began, and when it ended. The answer to a print, which a registry passes on to the caller that
 /// sent the job, and what a station's journal and a registry's record of the job say of it. A
 /// failed attempt has a `JobFailure` beside it, which says how it failed.

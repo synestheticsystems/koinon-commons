@@ -38,7 +38,9 @@ impl Refusal {
     /// The device is known, and cannot take the work now, such as a printer whose print system
     /// refuses work or a scale that is not plugged in.
     pub const DEVICE_UNAVAILABLE: &'static str = "device_unavailable";
-    /// The request lacks a component it requires, or breaks a rule of its request.
+    /// The request does not read as an envelope the side asked takes, lacks a component or a
+    /// property it requires, carries a value its type refuses, or breaks a rule of its request, such
+    /// as one that carries two request components.
     pub const BAD_REQUEST: &'static str = "bad_request";
     /// The device cannot do what was asked: a print on a scale, a weigh on a printer, or a
     /// document in a format that the printer's `document_formats` do not list.

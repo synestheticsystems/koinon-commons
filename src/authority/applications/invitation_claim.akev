@@ -1,0 +1,43 @@
+[--iYP-sz_qtMYEzojHFuBqX3D8DPQAWLSh46CE0GCVM]
+nonce: 1icMy6Q3CCvv99ba7aWS0eCHAAr7d16IQsWi37chX64, timestamp: 2026-11-23T03:59:00.577Z
+lww: { label: "authority.invitation_claim", name: "InvitationClaim" }, member: system:model
+
+[fuko466qUehAQXNMfJ6uUjLdEB2omEOys9PMhmJeyjA]
+nonce: eIcyk9qZCj4hKjTurNcZ9UFNwc-idczes15ytQs0sDI, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    name: "secret"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $authority.invitation_claim
+    target_model: none
+}
+member: system:property
+
+[J251I2zvpZEOLaTX447E4ThyEFCzQaiCc9Ero0rU6i4]
+nonce: xLODpz8Aqxv3rOH8Uz0vDbSmopZeZeluh0YFH00Gyg0, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    model: $authority.invitation_claim
+    property: $secret
+    optional: false
+}
+member: system:model-property
+
+[x41uLdQ5LNMjXAQ46Pb0jgTI0hL2F0o9xlJlmXHTqfk]
+nonce: zixe_tD7gTxi0SHlBwQFu52_o-784FdgN6OCz7YirDs, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.invitation_claim
+    target_model: none
+}
+member: system:property
+
+[H7mCQ1TsWbcgfUSkcdEyVjmQd2WyqqqkEffKSxb1VAE]
+nonce: UFb0qGBEFNzUi8I8DIJ6Dm69-hc_rzHC4qLW4FU7i_0, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    model: $authority.invitation_claim
+    property: $name
+    optional: false
+}
+member: system:model-property

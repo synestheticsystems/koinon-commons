@@ -8,11 +8,12 @@ use crate::{
 
 /// An application's retirement, as its own key signed it, so that it proves itself and may come
 /// by any path: in a registry's hello, down a registry's held connection, or from anyone on the
-/// direct path. The envelope it carries holds `Retirement`, listed as a component a receiver must
+/// direct path. Its envelope carries `Retirement`, listed as a component a receiver must
 /// understand, and the application it retires is the signer. The one check a station makes of it,
-/// however it came, is that the signature holds ([`Signed::verify`]). A sender lists the carrier
-/// as a component a receiver must understand wherever it travels, since a station that dropped it
-/// would go on trusting a retired key.
+/// however it came, is that it opens ([`Signed::open`]): that its signature verifies, and that its
+/// envelope then decodes for a reader of retirements, which understands `Retirement` and nothing
+/// else. A sender lists the carrier as a component a receiver must understand wherever it travels,
+/// since a station that dropped it would go on trusting a retired key.
 #[derive(Model, Minted, Debug, Clone, PartialEq)]
 #[model(label = "authority.signed_retirement")]
 #[model(id = "DJ4LjLVa0nGR2nuLumsOLAiSUGco6AF5bXvuoBlKFDQ")]

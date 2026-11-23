@@ -1,0 +1,63 @@
+[AX3KgpiVAyAjTj-_hzmYIUdNx9ZB2g4ndHP5O7JBnYY]
+nonce: sByNZUsnnVZwUdsS_YZEvLWoqK0yEmRH22VvQ4lL0Ng, timestamp: 2026-11-23T03:59:00.576Z
+lww: { label: "authority.hosting", name: "Hosting" }, member: system:model
+
+[p2dAQ1-mOg0ns-fpJXDsh2Lg6QN1uta2evKYogPj7DA]
+nonce: AZQXDxmksv-OippShXrr00YXgEqhIXkdcbvax6KkGUE, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    name: "registry"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.hosting
+    target_model: none
+}
+member: system:property
+
+[sqfdWQhdOsRcqQGc5SVOX4Vr34U8M3R-HHmSjzDcVUI]
+nonce: f9aYGcPs1XoS5taHvL7wIPpWHp4MYOIZoIbNL77g9I4, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    model: $authority.hosting
+    property: $registry
+    optional: false
+}
+member: system:model-property
+
+[EFgo84PrhdH_N1ACrt84_zvIzdf11QG76og_dMKxJkg]
+nonce: 9LZczWGhdZW3yeHxDImXcYcM8Y3BFwVXmoEstG3gd-k, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    name: "name"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.hosting
+    target_model: none
+}
+member: system:property
+
+[HWUpHA6X6YApCnmp2_7el-OlRpunD7tFhz1TOXv43bM]
+nonce: QGpZ7l6feolbOCHFGtGz2DObq7G5q5XeUGauxkN9494, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    model: $authority.hosting
+    property: $name
+    optional: false
+}
+member: system:model-property
+
+[0CKENjMLxBy4vNsWIqvfUL5vAGZJBTkJ4ubBxg3UqK8]
+nonce: h6iVGNwcmfgIPUKbxF0YI2lzyhcesYbLxkYiM7iOyjM, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    name: "address"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $authority.hosting
+    target_model: none
+}
+member: system:property
+
+[CZNB2XfDwnAFiAltiGUMmNc2_HgHPGpGPj0ynNPSX7M]
+nonce: 1z_QEu1GaUpm_vJkCoKyCg6jgRwpq3dXg8Y9Ht9B7gQ, timestamp: 2026-11-23T03:59:00.577Z
+lww: {
+    model: $authority.hosting
+    property: $address
+    optional: false
+}
+member: system:model-property

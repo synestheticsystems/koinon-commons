@@ -1,0 +1,43 @@
+[kxu3xhNHkuqUQ214GmhgE6fwpStsDJHS_bg5bOzBQTU]
+nonce: g17DhQi2uPejS7yFVoqwQM0gGxFrPs-6_fcNkAI6k9I, timestamp: 2026-11-23T03:59:00.589Z
+lww: { label: "registry.registration", name: "Registration" }, member: system:model
+
+[pJJCPTWApyE84zufQ1K9kCNQnuPrmtUXYRI9ubPqGuc]
+nonce: z0155VD_Y9eDNaC4nAN7J6onSesHkKFjiJ0VCCczVzE, timestamp: 2026-11-23T03:59:00.589Z
+lww: {
+    name: "grant"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.registration
+    target_model: none
+}
+member: system:property
+
+[9hELKM2p8z_oCsLGyGAn-bUl5pr0lLkooR81NEEsWTI]
+nonce: -WyukqXzKqFfLUGCXMtnj1mr0z2jkAKsSIwIyIzPeog, timestamp: 2026-11-23T03:59:00.589Z
+lww: {
+    model: $registry.registration
+    property: $grant
+    optional: false
+}
+member: system:model-property
+
+[v7sLDiY7ONT42rgCedsaJxNYdD8QkCqrTkMr52yHdLo]
+nonce: njW7GkvSjNA-O6lQYCJfFkFN2X_Tm-lTf67lP-QFHOc, timestamp: 2026-11-23T03:59:00.589Z
+lww: {
+    name: "registered"
+    backend: "lww"
+    value_type: "i64"
+    minted_for: $registry.registration
+    target_model: none
+}
+member: system:property
+
+[Zs34JpyEn6-iHxZ_DgeNHtNe_LThp9fecVbuHsGhzDA]
+nonce: W73-NIkLHuLH-FY7GQAeEpSo-18nfkcusR6V59o7an0, timestamp: 2026-11-23T03:59:00.590Z
+lww: {
+    model: $registry.registration
+    property: $registered
+    optional: false
+}
+member: system:model-property

@@ -10,7 +10,7 @@ use crate::codec::Minted;
 /// stock the registry offers, from which a person picks what a printer is loaded with. The pick
 /// is written whole on the printer's entity, name and size, and not as a reference to the
 /// catalog, so that it reads the same on every server the station is signed in to.
-#[derive(Model, Minted, Debug, Clone, Serialize, Deserialize)]
+#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "devices.media")]
 #[model(id = "EJ_qLii0tXiKK-WbYNpqjl_vvCTVdMMrX8bJ7DyWzm0")]
 #[model(no_ffi)]
