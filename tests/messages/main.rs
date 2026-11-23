@@ -402,11 +402,23 @@ fn station_itself() -> Station {
     Station { public_key: station(), name: "Pack bench 3".into() }
 }
 
+/// A reply, read as its asker reads one, which tells its kind before it reads what that kind
+/// requires: the refusal, when the reply carries `Refusal`, and otherwise the answer, which
+/// `answer` reads from it.
+fn reply<T>(
+    bytes: &[u8],
+    answer: impl FnOnce(&ReceivedEnvelope<'_>) -> Result<T, Box<dyn Error>>,
+) -> Result<Result<T, Refusal>, Box<dyn Error>> {
+    let received = decoded(bytes, REPLIES_UNDERSTOOD);
+    match received.components().read::<Option<Refusal>>()? {
+        Some(refusal) => Ok(Err(refusal)),
+        None => Ok(Ok(answer(&received)?)),
+    }
+}
+
 /// What a station answers a request with that asks for nothing back, read as the asker reads it.
 fn assert_done(bytes: &[u8]) -> Outcome {
-    let reply = decoded(bytes, REPLIES_UNDERSTOOD);
-    let (refusal, done): (Option<Refusal>, Option<Done>) = reply.components().read()?;
-    assert_eq!((refusal, done), (None, Some(Done {})));
+    assert_eq!(reply(bytes, |answer| Ok(answer.components().read::<Done>()?))?, Ok(Done {}));
     Ok(())
 }
 
@@ -416,5 +428,8 @@ fn done() -> Vec<u8> {
 
 /// The code of the refusal that `bytes` carry, read as the asker reads a reply.
 fn refusal_code(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
-    Ok(decoded(bytes, REPLIES_UNDERSTOOD).components().read::<Refusal>()?.code)
+    match reply(bytes, |_| Ok(()))? {
+        Err(refusal) => Ok(refusal.code),
+        Ok(()) => Err("the reply is an answer, not a refusal".into()),
+    }
 }

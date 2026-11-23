@@ -12,13 +12,15 @@ use super::{
     *,
 };
 
-/// What a station answers a print with: a refusal, or the job's attempt with how it failed when it
-/// did.
-type Answered = (Option<Refusal>, JobAttempt, Option<JobFailure>);
+/// What a station answers a print with: the job's attempt, with how it failed when it did; or the
+/// refusal of a print the station did not take.
+type Answered = Result<(JobAttempt, Option<JobFailure>), Refusal>;
 
-/// What a station answers a print with, read as the registry reads it to pass it on to the caller.
+/// What a station answers a print with, read as the registry reads it to pass it on to the caller:
+/// a refusal when the answer carries one, which carries no attempt, and otherwise the job's
+/// attempt.
 fn read_attempt(answer: &[u8]) -> Result<Answered, Box<dyn Error>> {
-    Ok(decoded(answer, REPLIES_UNDERSTOOD).components().read()?)
+    reply(answer, |answer| Ok(answer.components().read()?))
 }
 
 /// A caller's print through a registry's gateway, signed whole, read by the station from inside
@@ -36,7 +38,7 @@ fn a_gateway_print_is_signed_whole_and_answered_with_its_sent_attempt() -> Outco
 
     let sent = JobAttempt { state: AttemptState::Sent, accepted: at(NOW + 200), finished: Some(at(NOW + 450)) };
     let answer = EnvelopeBuilder::new().add(&sent)?.encode();
-    assert_eq!(read_attempt(&answer)?, (None, sent, None));
+    assert_eq!(read_attempt(&answer)?, Ok((sent, None)));
     Ok(())
 }
 
@@ -47,7 +49,18 @@ fn a_print_whose_attempt_failed_is_answered_with_the_attempt_and_its_failure() -
     let failed = JobAttempt { state: AttemptState::Failed, accepted: at(NOW + 200), finished: Some(at(NOW + 1_200)) };
     let failure = JobFailure { code: JobFailure::DEVICE_FAILED.into(), message: "out of labels".into() };
     let answer = EnvelopeBuilder::new().add(&failed)?.add(&failure)?.encode();
-    assert_eq!(read_attempt(&answer)?, (None, failed, Some(failure)));
+    assert_eq!(read_attempt(&answer)?, Ok((failed, Some(failure))));
+    Ok(())
+}
+
+/// The answer to a print the station did not take, here because the printer cannot take work now,
+/// is its refusal alone, with no attempt, since no job was recorded; the registry reads it as the
+/// refusal it passes on to the caller.
+#[test]
+fn a_print_the_station_refused_is_answered_with_the_refusal_alone() -> Outcome {
+    let refusal = Refusal { code: Refusal::DEVICE_UNAVAILABLE.into(), message: "the printer's print system refuses work".into() };
+    let answer = EnvelopeBuilder::new().add(&refusal)?.encode();
+    assert_eq!(read_attempt(&answer)?, Err(refusal));
     Ok(())
 }
 
