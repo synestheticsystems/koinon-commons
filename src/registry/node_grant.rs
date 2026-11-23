@@ -5,7 +5,8 @@ use crate::{codec::Minted, public_key::PublicKey};
 
 /// That the node with this key may act on this registry. It is the whole of a node's permission
 /// here: a node proves its key at every contact, and the registry looks for a grant for that key
-/// that is not closed. A message names it by its id, in a `Registration`, and never carries it.
+/// that is not closed. A message names it by its id, in a `Registration` or a `ForGrant`, and
+/// never carries it.
 ///
 /// The registry writes it when a person signs the node in, whom the Ankurah Commons' `Created`
 /// names. Revoking it, or signing the node out, is `Closed`. A station's devices are registered

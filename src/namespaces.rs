@@ -80,6 +80,7 @@ pub const NAMESPACES: &[Namespace] = &[
     Namespace {
         name: "registry",
         models: &[
+            registry::ForGrant::descriptor,
             registry::IdTokenSignIn::descriptor,
             registry::NodeGrant::descriptor,
             registry::Registration::descriptor,

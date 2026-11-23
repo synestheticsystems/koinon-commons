@@ -9,6 +9,7 @@
 // alone writes and reads a grant, and brings the scopes across alone; a `Registration` would then
 // name its grant by its entity id, under the same minted id.
 
+mod for_grant;
 mod id_token_sign_in;
 mod node_grant;
 mod registration;
@@ -17,6 +18,7 @@ mod signed_in_person;
 
 pub mod requests;
 
+pub use for_grant::*;
 pub use id_token_sign_in::*;
 pub use node_grant::*;
 pub use registration::*;

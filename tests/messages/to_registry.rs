@@ -131,49 +131,129 @@ fn a_registration_names_its_station_its_place_and_its_application() -> Outcome {
     Ok(())
 }
 
-/// What a registry keeps of the station's registrations for the application: each under the grant
-/// it wrote for it, and whether that grant is still open.
+/// What a registration asks a registry: the person whose sign-in it accepted on the connection,
+/// the station's record, and the place.
+#[derive(Debug, PartialEq)]
+struct Asked {
+    person: &'static str,
+    station: ScopeAssignment,
+    place: Place,
+}
+
+/// A grant a registry wrote for the station's registration for the application: the registration
+/// it answered with, what was asked, and whether the grant is still open.
+struct Written {
+    registration: Registration,
+    asked: Asked,
+    open: bool,
+}
+
+/// What a registry keeps of the station's registrations for the application, each under the grant
+/// it wrote for it, with the clock that gives each grant its moment.
 #[derive(Default)]
-struct Grants(Vec<(Registration, bool)>);
+struct Grants {
+    written: Vec<Written>,
+    clock: RegistryClock,
+}
 
 impl Grants {
-    /// Registers the station under a new grant, `grant`, written at `registered`, and answers the
-    /// registration with it.
-    fn register(&mut self, grant: u8, registered: i64) -> Result<Vec<u8>, Box<dyn Error>> {
-        let written = registration(grant, registered);
-        self.0.push((written.clone(), true));
-        Ok(EnvelopeBuilder::new().add(&for_application())?.add_must_understand(&written)?.encode())
+    /// Answers `request`, a registration of the station for the application by `person`, whose
+    /// sign-in the registry accepted on the connection, when the registry's clock reads `now`: a
+    /// repeat of the registration that holds the station registered, by the same person, for the
+    /// same station record and in the same place, with its `Registration` again; any other while
+    /// that registration is open with a refusal as `not_authorized`; and one while none is with a
+    /// `Registration` under a grant written anew.
+    fn register(&mut self, request: &[u8], person: &'static str, now: i64) -> Result<Vec<u8>, Box<dyn Error>> {
+        let received = registry_reads(request);
+        let (_, station, application) = received.components().read::<(Register, ScopeAssignment, ForApplication)>()?;
+        if application != for_application() {
+            return Err("the registry hosts no other application".into());
+        }
+        let asked = Asked { person, station, place: place(&received.components())? };
+        let registration = match self.written.iter().find(|written| written.open) {
+            Some(open) if open.asked == asked => open.registration.clone(),
+            Some(_) => {
+                let refusal =
+                    Refusal { code: Refusal::NOT_AUTHORIZED.into(), message: "the station is registered for the application".into() };
+                return Ok(EnvelopeBuilder::new().add(&refusal)?.encode());
+            }
+            None => {
+                let grant = 40 + u8::try_from(self.written.len())?;
+                let anew = registration(grant, self.clock.moment(now));
+                self.written.push(Written { registration: anew.clone(), asked, open: true });
+                anew
+            }
+        };
+        Ok(EnvelopeBuilder::new().add(&for_application())?.add_must_understand(&registration)?.encode())
     }
 
-    /// Ends the registration a notice that the station no longer shares names: its grant alone, if
-    /// it is still open, so that a notice under an old grant leaves a newer one open.
+    /// Ends the registration a notice that the station no longer shares names, by its grant alone,
+    /// if the grant is still open and is the station's for the application, so that a notice under
+    /// an old grant leaves a newer one open.
     fn stop_sharing(&mut self, notice: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
         let received = registry_reads(notice);
-        let (_, application, named) = received.components().read::<(StopSharing, ForApplication, Registration)>()?;
-        assert_eq!(application, for_application());
-        for (registration, open) in &mut self.0 {
-            if registration.grant == named.grant {
-                *open = false;
+        let (_, application, named) = received.components().read::<(StopSharing, ForApplication, ForGrant)>()?;
+        for written in &mut self.written {
+            if application == for_application() && written.registration.grant == named.grant {
+                written.open = false;
             }
         }
         Ok(done())
     }
 
     fn open(&self) -> Vec<Registration> {
-        self.0.iter().filter(|(_, open)| *open).map(|(registration, _)| registration.clone()).collect()
+        self.written.iter().filter(|written| written.open).map(|written| written.registration.clone()).collect()
     }
 }
 
-/// The registration a station keeps from the registry's answer to its `Register`.
+/// A registration of the station for the application in the sub-scope whose record is
+/// `sub_scope`, under the scope the sign-in's answer listed.
+fn registering_in(sub_scope: u8) -> Result<Vec<u8>, Box<dyn Error>> {
+    Ok(EnvelopeBuilder::new()
+        .add_must_understand(&Register {})?
+        .add(&ScopeAssignment { station: station_record().into() })?
+        .add(&Placement { scope: entity(20).into(), sub_scope: Some(entity(sub_scope).into()) })?
+        .add_must_understand(&for_application())?
+        .encode())
+}
+
+/// The registration a station keeps from the registry's answer to its `Register`, read as the
+/// station reads a reply: an answer that is a refusal registers nothing.
 fn kept(answer: &[u8]) -> Result<Registration, Box<dyn Error>> {
-    let (application, registration) = decoded(answer, REPLIES_UNDERSTOOD).components().read::<(ForApplication, Registration)>()?;
-    assert_eq!(application, for_application());
+    let read = reply(answer, |answer| Ok(answer.components().read::<(ForApplication, Registration)>()?))?;
+    let (application, registration) = read.map_err(|refusal| format!("the registration was refused as {}", refusal.code))?;
+    if application != for_application() {
+        return Err("the answer names another application".into());
+    }
     Ok(registration)
 }
 
-/// The notice that the station no longer shares with the application under `registration`.
+/// The notice that the station no longer shares with the application under `registration`, which
+/// names the registration's grant and nothing else of it.
 fn notice(registration: &Registration) -> Result<Vec<u8>, Box<dyn Error>> {
-    Ok(EnvelopeBuilder::new().add_must_understand(&StopSharing {})?.add(&for_application())?.add_must_understand(registration)?.encode())
+    Ok(EnvelopeBuilder::new()
+        .add_must_understand(&StopSharing {})?
+        .add(&for_application())?
+        .add_must_understand(&ForGrant { grant: registration.grant })?
+        .encode())
+}
+
+/// A station whose answer was lost repeats its registration as it was, and is answered with the
+/// same registration, under the grant already written and with its moment; while that
+/// registration is open, any other registration of the station for the application, in another
+/// place or by another person, is refused as `not_authorized`.
+#[test]
+fn a_repeated_registration_is_answered_with_the_same_registration_and_any_other_is_refused() -> Outcome {
+    let mut grants = Grants::default();
+    let request = registering_in(21)?;
+    let first = kept(&grants.register(&request, "the person who said yes", NOW - 10 * MINUTE)?)?;
+    assert_eq!(kept(&grants.register(&request, "the person who said yes", NOW - 9 * MINUTE)?)?, first);
+    let elsewhere = grants.register(&registering_in(22)?, "the person who said yes", NOW - 8 * MINUTE)?;
+    assert_eq!(refusal_code(&elsewhere)?, Refusal::NOT_AUTHORIZED);
+    let by_someone_else = grants.register(&request, "another person", NOW - 8 * MINUTE)?;
+    assert_eq!(refusal_code(&by_someone_else)?, Refusal::NOT_AUTHORIZED);
+    assert_eq!(grants.open(), [first]);
+    Ok(())
 }
 
 /// A person removes the application and adds it again; the station's first notice, repeated after
@@ -182,10 +262,11 @@ fn notice(registration: &Registration) -> Result<Vec<u8>, Box<dyn Error>> {
 #[test]
 fn a_notice_that_arrives_late_ends_its_own_registration_and_leaves_a_newer_one_open() -> Outcome {
     let mut grants = Grants::default();
-    let first = kept(&grants.register(40, NOW - 10 * MINUTE)?)?;
+    let request = registering_in(21)?;
+    let first = kept(&grants.register(&request, "the person who said yes", NOW - 10 * MINUTE)?)?;
     let removal = notice(&first)?;
     assert_done(&grants.stop_sharing(&removal)?)?;
-    let second = kept(&grants.register(41, NOW - 5 * MINUTE)?)?;
+    let second = kept(&grants.register(&request, "the person who said yes", NOW - 5 * MINUTE)?)?;
     assert_ne!(first.grant, second.grant, "a registration after a removal is under a new grant");
 
     assert_done(&grants.stop_sharing(&removal)?)?;

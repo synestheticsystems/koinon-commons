@@ -5,7 +5,7 @@ nodes, mean the same thing by "a device" or "a station". A layer on the
 [Ankurah Commons](https://github.com/ankurah/commons), in its shape.
 
 **Status: draft, with a mint kept, and no id final.** The definitions of every model in the
-seven namespaces, 55 models with 76 properties and their links, are minted, unsigned, in the
+seven namespaces, 56 models with 77 properties and their links, are minted, unsigned, in the
 `.akev` files beside the structs, in the format of the Ankurah revision this crate builds
 against.
 
@@ -119,9 +119,10 @@ it. Components are filed by what they mean, never by whether they travel.
   the receiver does or how it reads the stream: each request component; each carrier, and the
   statement inside it, a slip's body and its party, a retirement or a hosting; each restriction
   an older receiver must not drop, such as an `Expiry`; a print's `DocumentFollows`, which
-  changes how the stream is read; a voiding of slips; and a registration's application and its
-  `Registration`. A restriction added later is a component of its own, listed so, and never a
-  new property of an old one, which an older receiver would ignore.
+  changes how the stream is read; a voiding of slips; a registration's application and its
+  `Registration`; and the `ForGrant` of a notice that ends one. A restriction added later is a
+  component of its own, listed so, and never a new property of an old one, which an older
+  receiver would ignore.
 - A receiver understands a component only where it reads it and for what it reads it. A reader
   of a request, or of what a carrier carries, reads the envelope's own components and none of
   its records, so it decodes with `ReceivedEnvelope::decode_own_components`, which refuses as

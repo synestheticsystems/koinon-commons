@@ -37,7 +37,7 @@ use koinon_commons::{
     public_key::{PublicKey, PublicKeys},
     registry::{
         requests::{Hello, Register, SignIn, StopSharing},
-        FirstScope, IdTokenSignIn, Placement, Registrable, Registration, Scope, ScopeAssignment, SignedInPerson,
+        FirstScope, ForGrant, IdTokenSignIn, Placement, Registrable, Registration, Scope, ScopeAssignment, SignedInPerson,
     },
     replies::{Done, NotUnderstood, Refusal},
 };
@@ -106,7 +106,7 @@ const REGISTRY_UNDERSTANDS: &[MintedId] = &[
     Placement::ID,
     FirstScope::ID,
     ForApplication::ID,
-    Registration::ID,
+    ForGrant::ID,
     Events::ID,
 ];
 

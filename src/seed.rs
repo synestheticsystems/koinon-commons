@@ -87,6 +87,7 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "nodes/events.akev",
     "nodes/node_link.akev",
     "nodes/requests/push_events.akev",
+    "registry/for_grant.akev",
     "registry/id_token_sign_in.akev",
     "registry/node_grant.akev",
     "registry/registration.akev",

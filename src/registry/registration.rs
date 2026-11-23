@@ -11,8 +11,9 @@ use crate::codec::Minted;
 /// made for one application, as before and after a person removed the application and added it
 /// again. The answer to a `Register` carries it, the hello's answer carries a record of it for each
 /// registration, and the station keeps it on its record of the application, so that its notice that
-/// it no longer shares with the application, a `StopSharing`, names the grant and ends that
-/// registration alone: a notice that arrives late leaves a registration made since as it was.
+/// it no longer shares with the application, a `StopSharing`, names the grant, in a `ForGrant`, and
+/// ends that registration alone: a notice that arrives late leaves a registration made since as it
+/// was.
 ///
 /// A sender lists it as a component a receiver must understand wherever it carries it, since a
 /// receiver that dropped it would take one registration of an application for another.

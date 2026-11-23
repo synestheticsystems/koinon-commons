@@ -1,0 +1,23 @@
+[hMIGomGMld_G7j1PiRg9Ev_NIsNJ8giRWp3zQ1tt7mM]
+nonce: mcwHofJ6pRtxN8YO7i0KyNWGfh_E4h76m_a0u3Ak5tI, timestamp: 2026-11-23T05:05:05.063Z
+lww: { label: "registry.for_grant", name: "ForGrant" }, member: system:model
+
+[gNg_58aNHV4midkQ9fgqp88XdE6dynuTJtJJGhpnrHs]
+nonce: aeqYckCsL2ofvFhfD4f9GYXP_KSKV4fvfu1TedCfa9o, timestamp: 2026-11-23T05:05:05.063Z
+lww: {
+    name: "grant"
+    backend: "lww"
+    value_type: "entityid"
+    minted_for: $registry.for_grant
+    target_model: none
+}
+member: system:property
+
+[o_7lGYbyPud0ovK7tdWzKFu32ctp98g36dyMpHLSgms]
+nonce: JaMBoxYLxfVD8Qpd9XbjAXH3ZHv1eleyZIJRKkqXEpo, timestamp: 2026-11-23T05:05:05.063Z
+lww: {
+    model: $registry.for_grant
+    property: $grant
+    optional: false
+}
+member: system:model-property
