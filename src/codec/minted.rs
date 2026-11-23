@@ -79,9 +79,10 @@ impl fmt::Debug for MintedId {
 /// }
 /// # fn main() {}
 /// ```
-// OPEN: the derive's name, and so the trait's: `Minted`, for what it relies on, the ids the mint
-// declares, which every model of the Commons has whether it is stored or sent; or
-// `MessageComponent`, for what it adds to a model, that the model can travel in a message.
+// OPEN: the name the derive, and so the trait, takes in place of `Minted`, which names what the
+// derive relies on, the ids the mint declares, rather than what it adds to a model: that the model
+// can travel in a message. Lean: `MessageComponent`, since a bare `Component` would read as a
+// second name for the model itself, which Ankurah already calls a component.
 pub trait Minted: ankurah::Model {
     /// The model's minted id, as `#[model(id = ...)]` declares it.
     const ID: MintedId;
