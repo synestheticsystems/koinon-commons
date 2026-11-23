@@ -24,9 +24,44 @@ fn registered(registration: &Registration) -> Result<RecordBuilder, Box<dyn Erro
     Ok(record)
 }
 
+/// What a registry's answer to a hello says, as the station reads it: each registration it keeps
+/// for the station, with its application; each retirement the station missed, as its key signed
+/// it; and each voiding of an application's slips, with its application.
+#[derive(Debug, Default, PartialEq)]
+struct HelloAnswer {
+    registrations: Vec<(Registration, ForApplication)>,
+    retirements: Vec<SignedRetirement>,
+    voidings: Vec<(SlipsVoided, ForApplication)>,
+}
+
+/// The answer to a hello, read as the station reads it, which tells a refusal from the answer
+/// first, since an answer with no record says that the registry keeps no registration for the
+/// station: each record, under no entity id, a registration, a retirement or a voiding. A record
+/// of news this station does not know is read past.
+fn hello_answer(answer: &[u8]) -> Result<HelloAnswer, Box<dyn Error>> {
+    let read = reply(answer, |answer| {
+        let mut hello = HelloAnswer::default();
+        for record in answer.records() {
+            let components = record.components();
+            if record.entity().is_some() {
+                return Err("a record of a hello's answer names no entity".into());
+            } else if components.has::<Registration>() {
+                hello.registrations.push(components.read()?);
+            } else if components.has::<SignedRetirement>() {
+                hello.retirements.push(components.read()?);
+            } else if components.has::<SlipsVoided>() {
+                hello.voidings.push(components.read()?);
+            }
+        }
+        Ok(hello)
+    })?;
+    Ok(read.map_err(|refusal| format!("the hello was refused as {}", refusal.code))?)
+}
+
 /// A station that has just connected learns which registrations the registry keeps for it, each
 /// under its grant, and the news it missed: a retirement it must apply, and a voiding of slips,
-/// which it may not drop.
+/// which it may not drop. An answer with no record says the registry keeps none, and a refusal of
+/// the hello does not read as one.
 #[test]
 fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() -> Outcome {
     let request = EnvelopeBuilder::new().add_must_understand(&Hello {})?.encode();
@@ -45,16 +80,16 @@ fn a_hello_is_answered_with_the_registrations_and_the_news_the_station_missed() 
     answer.add_record(registered(&kept)?)?.add_record(news)?.add_record(voiding)?;
     let answer = answer.encode();
 
-    let received = decoded(&answer, REPLIES_UNDERSTOOD);
-    let records: Vec<_> = received.records().collect();
-    assert_eq!(records.len(), 3);
-    assert!(records.iter().all(|record| record.entity().is_none()));
-    assert_eq!(records[0].components().read::<(Registration, ForApplication)>()?, (kept, for_application()));
-    let read_retirement: SignedRetirement = records[1].components().read()?;
+    let hello = hello_answer(&answer)?;
+    assert_eq!((hello.registrations, hello.voidings), (vec![(kept, for_application())], vec![(voided, for_application())]));
+    let [read_retirement] = &hello.retirements[..] else { return Err("the answer carries one retirement".into()) };
     assert_eq!(read_retirement.signer, for_application().key);
     let retired = read_retirement.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?;
     assert_eq!(retired.components().read::<Retirement>()?, Retirement { retired: at(NOW - 5 * MINUTE) });
-    assert_eq!(records[2].components().read::<(SlipsVoided, ForApplication)>()?, (voided, for_application()));
+
+    assert_eq!(hello_answer(&EnvelopeBuilder::new().encode())?, HelloAnswer::default());
+    let refusal = Refusal { code: Refusal::INTERNAL_FAILURE.into(), message: "the registry's store did not answer".into() };
+    assert!(hello_answer(&EnvelopeBuilder::new().add(&refusal)?.encode()).is_err());
     Ok(())
 }
 
@@ -82,15 +117,16 @@ fn a_sign_in_is_answered_with_the_person_and_the_scopes_they_may_register_in() -
     answer.add(&person)?.add_record(whole)?.add_record(registrable)?;
     let answer = answer.encode();
 
-    let received = decoded(&answer, REPLIES_UNDERSTOOD);
-    assert_eq!(received.components().read::<SignedInPerson>()?, person);
-    let read: Vec<(Option<EntityId>, Scope, Option<Registrable>)> = received
-        .records()
-        .map(|record| {
-            record.components().read::<(Scope, Option<Registrable>)>().map(|(scope, registrable)| (record.entity(), scope, registrable))
-        })
-        .collect::<Result<_, _>>()?;
-    assert_eq!(read, [(Some(acme), scope, None), (Some(east), sub_scope, Some(Registrable {}))]);
+    let read = reply(&answer, |answer| {
+        let scopes = answer
+            .records()
+            .map(|record| {
+                record.components().read::<(Scope, Option<Registrable>)>().map(|(scope, registrable)| (record.entity(), scope, registrable))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok((answer.components().read::<SignedInPerson>()?, scopes))
+    })?;
+    assert_eq!(read, Ok((person, vec![(Some(acme), scope, None), (Some(east), sub_scope, Some(Registrable {}))])));
     Ok(())
 }
 
@@ -276,11 +312,7 @@ fn a_notice_that_arrives_late_ends_its_own_registration_and_leaves_a_newer_one_o
     for open in grants.open() {
         hello.add_record(registered(&open)?)?;
     }
-    let hello = hello.encode();
-    let received = decoded(&hello, REPLIES_UNDERSTOOD);
-    let listed: Vec<Registration> =
-        received.records().map(|record| record.components().read::<Registration>()).collect::<Result<_, _>>()?;
-    assert_eq!(listed, [second]);
+    assert_eq!(hello_answer(&hello.encode())?.registrations, [(second, for_application())]);
     Ok(())
 }
 
@@ -329,9 +361,9 @@ fn a_catalog_is_answered_with_a_record_for_each_stock_and_each_fingerprint_in_or
     }
     let answer = answer.encode();
 
-    let received = decoded(&answer, REPLIES_UNDERSTOOD);
     let read: Vec<(Option<Media>, Option<PrinterFingerprint>)> =
-        received.records().map(|record| record.components().read()).collect::<Result<_, _>>()?;
+        reply(&answer, |catalog| Ok(catalog.records().map(|record| record.components().read()).collect::<Result<_, _>>()?))?
+            .map_err(|refusal| format!("the catalog was refused as {}", refusal.code))?;
     let read_stocks: Vec<Media> = read.iter().filter_map(|(stock, _)| stock.clone()).collect();
     assert_eq!(read_stocks, stocks);
     let read_fingerprints: Vec<PrinterFingerprint> = read.into_iter().filter_map(|(_, fingerprint)| fingerprint).collect();
