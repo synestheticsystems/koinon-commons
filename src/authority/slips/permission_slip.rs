@@ -16,8 +16,8 @@ use crate::{authority::Expiry, codec::Minted};
 ///   where to dial;
 /// - `AtDevices`, optional: the devices at those stations to which the slip narrows;
 /// - `AllowsRequests`, required: the kinds of request the party may make;
-/// - `Expiry`, required: until when it is honoured, at most [`PermissionSlip::MAX_LIFE_MS`] after
-///   its issue.
+/// - `Expiry`, required: until when it is honoured, no earlier than its issue and at most
+///   [`PermissionSlip::MAX_LIFE_MS`] after it.
 ///
 /// A station honours a slip only where every restriction it carries is met. A slip that lacks
 /// `Party`, `AtStations`, `AllowsRequests` or `Expiry` is refused. A restriction that is optional
@@ -29,9 +29,14 @@ use crate::{authority::Expiry, codec::Minted};
 /// issued no earlier than the moment the application's registry wrote the station's registration
 /// for the application, which the person's latest yes made, nor than the moment that registry last
 /// voided the application's slips (`SlipsVoided`). The registry gives those moments and the slip's
-/// issue by its one clock, so the station compares them exactly. It refuses a slip that says it
-/// was issued later than now, by more than the drift of clocks `Expiry` allows, and one that runs
-/// on for longer than a station honours a slip for.
+/// issue by its one clock, so the station compares them exactly; and it gives each of them later
+/// than every one it gave before, taking the millisecond after the last one it gave whenever its
+/// clock reads that one or an earlier one, as within one millisecond or after a restart, which
+/// carries on from the last one it gave. So a slip issued before a registration or a voiding is
+/// earlier than it, however close the two come, and the exact comparison tells them apart. A
+/// station refuses a slip that says it was issued later than now, by more than the drift of clocks
+/// `Expiry` allows, one whose expiry comes before its issue, and one that runs on for longer than a
+/// station honours a slip for.
 // OPEN: whether an application that a station's person paired with directly, with no registry,
 // may sign slips. The rules above apply either way; a station's check of the slip's signer names
 // the applications that may.
@@ -66,9 +71,10 @@ impl PermissionSlip {
 
     /// Whether the slip was issued before `moment`, a moment of the clock of the registry that
     /// issued it: when it wrote the station's registration for the slip's application, or last
-    /// voided the application's slips. Compared exactly, since both moments are of one clock, so
-    /// that a slip issued before the registration it rests on never passes, however soon after a
-    /// removal the person said yes again.
+    /// voided the application's slips. Compared exactly, since both moments are of one clock, which
+    /// gives each moment later than every one before it, so that a slip issued before the
+    /// registration it rests on never passes, however soon after a removal the person said yes
+    /// again.
     pub fn is_issued_before(&self, moment: Timestamp) -> bool {
         self.issued < moment
     }
@@ -78,6 +84,14 @@ impl PermissionSlip {
     /// its issuer's clock.
     pub fn runs_too_long(&self, expiry: &Expiry) -> bool {
         expiry.lies_beyond(self.issued, Self::MAX_LIFE_MS)
+    }
+
+    /// Whether `expiry`, the slip's own, comes before the slip's issue: a slip that lapses before
+    /// it begins, which no issuer means, and which the drift of clocks that
+    /// [`Expiry::has_passed`] allows would otherwise let a station honour for a minute. Compared
+    /// exactly, since both moments are of the issuer's clock.
+    pub fn expires_before_issue(&self, expiry: &Expiry) -> bool {
+        expiry.expires < self.issued
     }
 }
 
@@ -120,5 +134,14 @@ mod tests {
         assert!(slip().runs_too_long(&expiring(ISSUED + PermissionSlip::MAX_LIFE_MS + 1)));
         assert!(PermissionSlip { issued: at(i64::MIN), ..slip() }.runs_too_long(&expiring(i64::MAX)));
         assert!(!slip().runs_too_long(&expiring(i64::MIN)));
+    }
+
+    // A slip may lapse at the moment of its issue, and not a millisecond before it.
+    #[test]
+    fn a_slip_expires_before_its_issue_only_when_its_expiry_is_earlier_than_its_issue() {
+        let expiring = |millis| Expiry { expires: at(millis) };
+        assert!(!slip().expires_before_issue(&expiring(ISSUED)));
+        assert!(!slip().expires_before_issue(&expiring(ISSUED + 1)));
+        assert!(slip().expires_before_issue(&expiring(ISSUED - 1)));
     }
 }

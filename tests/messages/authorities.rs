@@ -106,6 +106,33 @@ fn a_slips_moments_are_honoured_up_to_their_edges_and_no_further() -> Outcome {
     Ok(())
 }
 
+/// A slip issued now that lapses at the moment of its issue is honoured for the drift of clocks;
+/// one that lapses a millisecond before its issue is refused, though that drift would cover it,
+/// since no issuer means a slip that ends before it begins.
+#[test]
+fn a_slip_that_expires_before_it_was_issued_is_refused() -> Outcome {
+    assert_eq!(weigh_under_slip(NOW, NOW, None)?, Ok(()));
+    assert!(not_authorized(weigh_under_slip(NOW, NOW - 1, None)?));
+    Ok(())
+}
+
+/// A registry that issues a slip and voids its application's slips in one millisecond gives the
+/// voiding the next millisecond, so the slip is void with the rest; and once it restarts with its
+/// clock reading earlier, it carries on from the voiding's moment, so a slip it issues then is
+/// honoured.
+#[test]
+fn a_slip_issued_in_the_millisecond_of_a_voiding_and_before_it_is_void() -> Outcome {
+    let now = NOW - 10 * MINUTE;
+    let mut clock = RegistryClock::default();
+    let issued = clock.moment(now);
+    let voided = clock.moment(now);
+    assert!(not_authorized(weigh_under_slip(issued, NOW + 60 * MINUTE, Some(voided))?));
+
+    let reissued = RegistryClock::resumed(voided).moment(now - 5);
+    assert_eq!(weigh_under_slip(reissued, NOW + 60 * MINUTE, Some(voided))?, Ok(()));
+    Ok(())
+}
+
 /// The connection proves the party's key, and a slip is of use to its party alone.
 #[test]
 fn a_slip_presented_by_another_party_is_refused() -> Outcome {

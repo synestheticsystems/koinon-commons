@@ -146,6 +146,30 @@ fn at(millis: i64) -> Timestamp {
     Timestamp::from_unix_millis(millis)
 }
 
+/// The clock by which a registry gives the moments a station compares exactly, a slip's issue, a
+/// registration's and a voiding's, as `PermissionSlip` sets out: each later than every one it gave
+/// before, the millisecond after the last one whenever its own clock reads that one or an earlier
+/// one.
+#[derive(Default)]
+struct RegistryClock {
+    last: Option<i64>,
+}
+
+impl RegistryClock {
+    /// The clock of a registry that has restarted, which carries on from `last`, the last moment it
+    /// gave.
+    fn resumed(last: i64) -> Self {
+        RegistryClock { last: Some(last) }
+    }
+
+    /// The moment the registry gives when its own clock reads `now`.
+    fn moment(&mut self, now: i64) -> i64 {
+        let moment = self.last.map_or(now, |last| now.max(last + 1));
+        self.last = Some(moment);
+        moment
+    }
+}
+
 /// The secret key of the application whose authority the requests carry, which came to the
 /// station through a registry.
 fn application() -> SigningKey {

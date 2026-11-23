@@ -26,7 +26,9 @@ pub struct Registration {
     pub grant: Ref<NodeGrant>,
     /// When the registry wrote the grant, by its own clock: the moment from which the station
     /// honours the application's permission slips, which the registry issues by the same clock, so
-    /// that the two compare exactly and no slip issued before the person's yes passes.
+    /// that the two compare exactly and no slip issued before the person's yes passes. The registry
+    /// gives it later than every slip it issued before, as `PermissionSlip` sets out, so that a
+    /// slip issued in the same millisecond, before the grant, is still earlier.
     #[property(id = "v7sLDiY7ONT42rgCedsaJxNYdD8QkCqrTkMr52yHdLo")]
     pub registered: Timestamp,
 }

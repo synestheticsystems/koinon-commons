@@ -22,7 +22,8 @@ use crate::{
 ///    receiver must understand refuses it;
 /// 3. its `Party` is the key the connection proves;
 /// 4. it was issued no later than now, allowing for the drift of clocks
-///    ([`PermissionSlip::is_issued_after`]), runs no longer than a station honours a slip for
+///    ([`PermissionSlip::is_issued_after`]), expires no earlier than it was issued
+///    ([`PermissionSlip::expires_before_issue`]), runs no longer than a station honours a slip for
 ///    ([`PermissionSlip::runs_too_long`]), and was issued no earlier than the moment its registry
 ///    wrote the station's registration for its application, nor than the moment it last voided
 ///    the application's slips, each compared exactly ([`PermissionSlip::is_issued_before`]);
@@ -36,6 +37,7 @@ use crate::{
 /// carrier as a component a receiver must understand.
 ///
 /// [`PermissionSlip::is_issued_after`]: crate::authority::PermissionSlip::is_issued_after
+/// [`PermissionSlip::expires_before_issue`]: crate::authority::PermissionSlip::expires_before_issue
 /// [`PermissionSlip::runs_too_long`]: crate::authority::PermissionSlip::runs_too_long
 /// [`PermissionSlip::is_issued_before`]: crate::authority::PermissionSlip::is_issued_before
 #[derive(Model, Minted, Debug, Clone, PartialEq)]

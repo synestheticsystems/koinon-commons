@@ -9,7 +9,10 @@ use crate::codec::Minted;
 /// application is the `ForApplication` beside it. It has its authority from the connection it
 /// comes on: a station takes it only from the registry the application came through, keeps the
 /// latest such moment for each application, and from then on honours none of its slips issued
-/// before it. The registry voids the good slips with the bad, and their parties ask for new ones.
+/// before it. The registry gives the moment later than every slip it issued before, as
+/// `PermissionSlip` sets out, so that a slip issued in the same millisecond, before the voiding, is
+/// void with the rest. The registry voids the good slips with the bad, and their parties ask for
+/// new ones.
 /// A sender lists it as a component a receiver must understand, since a station that dropped it
 /// would go on honouring void slips.
 // OPEN: voiding reaches beyond a registry's part of joining applications and keeping the lists of

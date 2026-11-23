@@ -143,8 +143,9 @@ pub struct Slip {
 /// `REGISTERED` and last voided its slips at `voided`, if ever: signed by an application the
 /// station shares its devices with, its signature verified, read as a reader of slips, for the
 /// party the connection proves, issued no later than now and no earlier than the registration or
-/// the voiding, running no longer than a slip may, unexpired, and naming this station. It gives
-/// the slip and the station's approval of its application, which the slip narrows.
+/// the voiding, expiring no earlier than its issue, running no longer than a slip may, unexpired,
+/// and naming this station. It gives the slip and the station's approval of its application, which
+/// the slip narrows.
 pub fn checked_slip(received: &ReceivedEnvelope<'_>, voided: Option<Timestamp>) -> Result<(Slip, Approval), Refused> {
     let presented: PresentedSlip = received.components().read()?;
     let approval = approval(&presented.signer).ok_or_else(|| Refused::not_authorized("the station shares with no such application"))?;
@@ -156,7 +157,11 @@ pub fn checked_slip(received: &ReceivedEnvelope<'_>, voided: Option<Timestamp>) 
         return Err(Refused::not_authorized("the slip is another party's"));
     }
     let honoured_from = voided.map_or(at(REGISTERED), |voided| voided.max(at(REGISTERED)));
-    if body.is_issued_after(at(NOW)) || body.runs_too_long(&expiry) || body.is_issued_before(honoured_from) {
+    if body.is_issued_after(at(NOW))
+        || body.expires_before_issue(&expiry)
+        || body.runs_too_long(&expiry)
+        || body.is_issued_before(honoured_from)
+    {
         return Err(Refused::not_authorized("the slip's moments are not ones a station honours"));
     }
     if expiry.has_passed(at(NOW)) {
