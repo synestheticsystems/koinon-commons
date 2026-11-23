@@ -79,8 +79,13 @@ impl EnvelopeBuilder {
 
     /// The envelope's bytes.
     pub fn encode(&self) -> Vec<u8> {
-        let must_understand: BTreeSet<MintedId> =
-            self.records.iter().map(|record| &record.held).chain([&self.own]).flat_map(|held| held.must_understand.iter().copied()).collect();
+        let must_understand: BTreeSet<MintedId> = self
+            .records
+            .iter()
+            .map(|record| &record.held)
+            .chain([&self.own])
+            .flat_map(|held| held.must_understand.iter().copied())
+            .collect();
         let records = self.records.iter().map(|record| 1 + 34 + record.held.len_bound()).sum::<usize>();
         let mut out = Vec::with_capacity(1 + 9 + 34 * must_understand.len() + self.own.len_bound() + 9 + records);
         cbor::write_head(&mut out, ARRAY, 3);
@@ -171,7 +176,11 @@ impl Held {
 
     /// No fewer bytes than `write` appends: each id is 34, and no head more than 9.
     fn len_bound(&self) -> usize {
-        9 + self.components.values().map(|properties| 34 + 9 + properties.iter().map(|(_, value)| 34 + value.len()).sum::<usize>()).sum::<usize>()
+        9 + self
+            .components
+            .values()
+            .map(|properties| 34 + 9 + properties.iter().map(|(_, value)| 34 + value.len()).sum::<usize>())
+            .sum::<usize>()
     }
 }
 

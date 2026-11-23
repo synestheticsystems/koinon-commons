@@ -118,7 +118,10 @@ fn json_holds_a_plain_value_or_a_list_of_them_and_nothing_with_parts() {
     ];
     for (item, found) in cases {
         let problem = refused(item, ValueType::Json);
-        assert!(matches!(problem, ValueProblem::UnexpectedType { expected: ValueType::Json, found: f } if f == found), "{item:02x?}: {problem}");
+        assert!(
+            matches!(problem, ValueProblem::UnexpectedType { expected: ValueType::Json, found: f } if f == found),
+            "{item:02x?}: {problem}"
+        );
     }
     let below_i64 = encoded_integer(i128::from(i64::MIN) - 1);
     assert!(matches!(refused(&below_i64, ValueType::Json), ValueProblem::OutOfRange { expected: ValueType::Json }));

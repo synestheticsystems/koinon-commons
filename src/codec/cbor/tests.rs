@@ -91,7 +91,8 @@ fn a_float_takes_the_shortest_width_that_keeps_every_bit() {
 // Signalling NaNs among them, which a conversion between widths may quieten.
 #[test]
 fn a_nan_keeps_its_sign_and_payload_in_whatever_width_it_takes() {
-    for (bits, width) in [(0x7ff4_0000_0000_0000u64, 3), (0xfff0_0000_2000_0000, 5), (0x7ff8_0000_0000_0001, 9), (0xfff0_0000_0000_0001, 9)] {
+    for (bits, width) in [(0x7ff4_0000_0000_0000u64, 3), (0xfff0_0000_2000_0000, 5), (0x7ff8_0000_0000_0001, 9), (0xfff0_0000_0000_0001, 9)]
+    {
         let bytes = written(|out| write_float(out, f64::from_bits(bits)));
         assert_eq!(bytes.len(), width, "{bits:x}");
         assert_eq!(read_float(&bytes).to_bits(), bits, "{bits:x}");

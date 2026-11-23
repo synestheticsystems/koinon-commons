@@ -164,9 +164,7 @@ pub(crate) fn index(bytes: &[u8], limits: &Limits, understood: &[MintedId]) -> R
         return Err(DecodeError::MustUnderstandTwice { component, at });
     }
     index.must_understand = listed.into_iter().map(|(component, _)| component).collect();
-    if let Some(&component) =
-        index.must_understand.iter().find(|component| !index.components.iter().any(|held| held.id == **component))
-    {
+    if let Some(&component) = index.must_understand.iter().find(|component| !index.components.iter().any(|held| held.id == **component)) {
         return Err(DecodeError::MustUnderstandAbsent { component });
     }
     let unknown: Vec<MintedId> = index.must_understand.iter().copied().filter(|component| !understood.contains(component)).collect();
@@ -239,10 +237,11 @@ impl<'b> Walk<'b> {
     /// Reads a component's or a property's id, and gives it with where it begins.
     fn id(&mut self, depth: usize) -> Result<(MintedId, usize), DecodeError> {
         match self.next(depth)? {
-            (at, Item::Bytes(bytes)) => bytes
-                .try_into()
-                .map(|id| (MintedId::from_bytes(id), at))
-                .map_err(|_| DecodeError::NotAnEnvelope { at, expected: ID, found: "a byte string of another length" }),
+            (at, Item::Bytes(bytes)) => bytes.try_into().map(|id| (MintedId::from_bytes(id), at)).map_err(|_| DecodeError::NotAnEnvelope {
+                at,
+                expected: ID,
+                found: "a byte string of another length",
+            }),
             (at, other) => Err(DecodeError::NotAnEnvelope { at, expected: ID, found: other.kind() }),
         }
     }

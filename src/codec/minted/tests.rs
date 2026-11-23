@@ -47,11 +47,8 @@ fn travels_as_described<C: Minted + Serialize>(full: &C, bare: &C) {
 
 #[test]
 fn every_model_of_the_commons_travels_under_the_ids_ankurahs_descriptor_holds() {
-    let device = Device {
-        station: Ref::from(EntityId::from_bytes([3; 32])),
-        system_name: "Zebra_ZD421".into(),
-        name: "Pack bench 3 labels".into(),
-    };
+    let device =
+        Device { station: Ref::from(EntityId::from_bytes([3; 32])), system_name: "Zebra_ZD421".into(), name: "Pack bench 3 labels".into() };
     travels_as_described(&device, &device);
     let formats = ["application/pdf", "application/vnd.cups-raw"].map(|text| MimeType::new(text).unwrap());
     let printer = Printer { driver: "Zebra ZPL Label Printer".into(), document_formats: MimeTypes::new(formats.to_vec()).unwrap() };

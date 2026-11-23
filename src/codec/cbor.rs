@@ -94,7 +94,8 @@ impl<'b> Reader<'b> {
             _ => return Err(DecodeError::Excluded { at, what: "a malformed head" }),
         };
         let following = self.bytes.get(at + 1..at + 1 + width).ok_or(DecodeError::Truncated { at })?;
-        let argument = if width == 0 { u64::from(info) } else { following.iter().fold(0, |argument, &byte| argument << 8 | u64::from(byte)) };
+        let argument =
+            if width == 0 { u64::from(info) } else { following.iter().fold(0, |argument, &byte| argument << 8 | u64::from(byte)) };
         self.position = at + 1 + width;
         Ok(match major {
             UNSIGNED => Item::Integer(i128::from(argument)),
