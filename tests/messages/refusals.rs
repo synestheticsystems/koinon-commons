@@ -158,13 +158,14 @@ fn a_first_scope_with_a_blank_name_is_refused_naming_the_property() -> Outcome {
     Ok(())
 }
 
-/// An endorsement whose address is more than a host name, or a host name written another way,
-/// though the application's key signed it, is refused by the rule of a host name, naming the
-/// property, so that a station never compares such an address with the one its person typed.
+/// An endorsement whose address is more than a host name, a host name written another way, an IP
+/// address in one of its spellings, or a name the host parser refuses, though the application's key
+/// signed it, is refused by the rule of a host name, naming the property, so that a station never
+/// compares such an address with the one its person typed.
 #[test]
 fn an_endorsement_of_an_address_that_is_no_host_name_is_refused_naming_the_property() -> Outcome {
     let address = property::<Hosting>("address");
-    for written in ["https://acme.example.com", "acme.example.com/login", "Acme.example.com", ""] {
+    for written in ["https://acme.example.com", "acme.example.com/login", "Acme.example.com", "", "127.1", "127.0.0.1", "xn--a.pt"] {
         let hosting = LooseHosting { registry: registry(), name: Name::new("Acme")?, address: written.into() };
         let endorsement: SignedHosting = signed(EnvelopeBuilder::new().add_must_understand(&hosting)?);
         let opened = endorsement.open(&Limits::default(), HOSTING_UNDERSTANDS)?;

@@ -24,9 +24,10 @@ pub struct Hosting {
     pub name: Name,
     /// The application's address, where its people log in: its host name alone, in the one form
     /// in which a host name is written, such as `acme.example.com`, so that a registry and a
-    /// station write one address one way, and a station compares it with the address its person
-    /// typed, written the same way. A hosting whose address is written any other way does not
-    /// read.
+    /// station write one address one way. A station compares it, as text, with the address its
+    /// person typed, which it writes in that form first ([`HostName::from_typed`]), through the
+    /// same parser. A hosting whose address is written any other way, or is an IP address, does
+    /// not read.
     #[active_type(LWW)]
     #[property(id = "0CKENjMLxBy4vNsWIqvfUL5vAGZJBTkJ4ubBxg3UqK8")]
     pub address: HostName,

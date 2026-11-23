@@ -27,6 +27,9 @@ sha2                  = "0.10"
 # The JSON of a json-typed property, which an envelope carries as CBOR.
 serde_json            = "1"
 thiserror             = "2"
+# The host parser of an HTTPS address, by which an application's address is written in one form,
+# whether a registry signs it or a station's person types it.
+url                   = "2"
 
 [dev-dependencies]
 # Durable nodes to seed, on the two storage engines the Ankurah Commons' tests use.
