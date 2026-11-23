@@ -19,9 +19,9 @@
 //!
 //! Here are the applications a station shares its devices with, and the two ways it comes to;
 //! permission slips, and the parties they are for; the restrictions on where, for what and until
-//! when an authority is honoured, which a receiver must understand; the carriers of what an
-//! application's key signed, as the exact bytes it signed; how an application's authority ends
-//! before it lapses; and the requests that bring a station a claim of an invitation, and that news.
+//! when an authority is honoured, which a receiver must understand; how an application's authority
+//! ends before it lapses; and the requests that bring a station a claim of an invitation, and that
+//! news.
 
 mod applications;
 mod restrictions;

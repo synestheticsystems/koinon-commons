@@ -17,8 +17,7 @@ model's file the `.akev` file of its minted definitions:
     src/authority/       who may ask a station for what, and how a request proves it: the
                          applications a station shares its devices with and how it comes to,
                          permission slips and the parties they are for, the restrictions on
-                         an authority, the carriers of what an application's key signed, and
-                         how an authority ends before it lapses
+                         an authority, and how an authority ends before it lapses
     src/catalog/         what a registry knows of printers
     src/devices/         printers and scales, a stock of the kind a printer is loaded with, the
                          station that offers them, and what a scale reads
@@ -109,22 +108,16 @@ it. Components are filed by what they mean, never by whether they travel.
   the answer, the components its request names, or `Done`.
 - A list of things that each carry several components travels as the envelope's records, such
   as a station's devices, a registry's catalog, or the registrations it keeps for a station.
-- What an application's key signs travels as the exact bytes it signed, in a carrier of
-  `authority`: a request signed whole, the permission slip a party's request comes under, the
-  key's retirement, or its endorsement of a registry's hosting of the application. A receiver
-  reads what a carrier carries only through `Signed::open`, which verifies the signature over
-  the bytes as they arrived before it decodes them, as a reader of that kind of statement that
-  understands the components it acts on there and no other, and it acts on nothing else.
 - A sender lists as one a receiver must understand every component whose loss would change what
-  the receiver does or how it reads the stream: each request component; each carrier, and the
-  statement inside it, a slip's body and its party, a retirement or a hosting; each restriction
-  an older receiver must not drop, such as an `Expiry`; a print's `DocumentFollows`, which
+  the receiver does or how it reads the stream: each request component; a slip's body and its
+  party, a retirement or a hosting; each restriction an older receiver must not drop, such as
+  an `Expiry`; a print's `DocumentFollows`, which
   changes how the stream is read; a voiding of slips; a registration's application and its
   `Registration`; and the `ForGrant` of a notice that ends one. A restriction added later is a
   component of its own, listed so, and never a new property of an old one, which an older
   receiver would ignore.
 - A receiver understands a component only where it reads it and for what it reads it. A reader
-  of a request, or of what a carrier carries, reads the envelope's own components and none of
+  of a request reads the envelope's own components and none of
   its records, so it decodes with `ReceivedEnvelope::decode_own_components`, which refuses as
   not understood a component listed so that a record holds. Once it knows which request it was
   sent, it refuses as `not_understood` too a component listed so that neither that request nor
@@ -179,7 +172,7 @@ new model or a new property takes two passes:
 1. Declare the new model with `#[derive(Model)]` alone, list it in `src/namespaces.rs`, and run
    `mint`, which writes its file beside it and its ids into it. For a property added to a model
    that derives `Minted`, take `Minted` off the struct for this pass, and any impl that requires
-   it, such as a carrier's `Signed`.
+   it.
 2. Derive `Minted` on the struct, put back what the first pass took off, add a new model's file
    to the list in `src/seed.rs`, which the seed's tests check, and run `verify`.
 

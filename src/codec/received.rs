@@ -44,8 +44,8 @@ impl<'a> ReceivedEnvelope<'a> {
     }
 
     /// Checks and indexes `bytes` as [`ReceivedEnvelope::decode`] does, for a receiver that reads
-    /// the envelope's own components and none of its records, as the reader of a request or of
-    /// what a carrier carries does. `understood` names the components it understands among the
+    /// the envelope's own components and none of its records, as the reader of a request does.
+    /// `understood` names the components it understands among the
     /// envelope's own; one that the envelope lists as must-understand and that a record holds is
     /// one it would drop, so it is refused too, named with every component this receiver does not
     /// understand. A component a record holds that the envelope does not list so is checked, then
