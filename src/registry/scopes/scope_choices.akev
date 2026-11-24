@@ -1,0 +1,23 @@
+[OCIUOsGa0tCztwDspQg-8H8afxpXx70BhY_FSkvd7KY]
+nonce: ZHQxsvR_yhP3pBEHlpD1wnjliIlEMCHE_xHLIEPo9Aw, timestamp: 2026-11-24T19:19:35.731Z
+lww: { label: "registry.scope_choices", name: "ScopeChoices" }, member: system:model
+
+[XtvTVY8rLMuDSwEp6F2mNDZ-bCCSqnnk4ehEwI-y3kE]
+nonce: B6aADgix9ZMs38g5_wad34-TFTyDY2PSPtTWoz4A3Xc, timestamp: 2026-11-24T19:19:35.731Z
+lww: {
+    name: "scopes"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $registry.scope_choices
+    target_model: none
+}
+member: system:property
+
+[s6Vlui1hZ5_OUkwRpkYMojXRJtMRfs8tn5Q-a0IAPgE]
+nonce: NNhP3fWOcqOCIdsFrlZFDRZTPbbXeXgbjJIFQH6-kCY, timestamp: 2026-11-24T19:19:35.731Z
+lww: {
+    model: $registry.scope_choices
+    property: $scopes
+    optional: false
+}
+member: system:model-property

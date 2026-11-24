@@ -9,8 +9,8 @@
 //! asked to do on its devices and where each job stands, `catalog` what a registry knows of
 //! printers, `registry` a registry's scopes and how a station registers there, and
 //! `authority` who may ask a station for what and how a request proves it. `replies` holds what
-//! any reply may say of its request. A namespace's `requests` module holds the components that
-//! ask for something of the records it holds.
+//! any response may say of its request. A namespace's `operations` module holds the tags that ask
+//! for something of the records it holds.
 //!
 //! `mime_type` holds the MIME types by which a document names its format and a printer the
 //! formats it takes, `public_key` the keys components name nodes and applications by, `name`
@@ -21,16 +21,12 @@
 //! text form of the Ankurah Commons' `akev`. `seed` loads them into a durable node, so that
 //! the models take the minted ids there; `namespaces` lists the models the mint tool mints.
 //!
-//! `codec` holds envelopes, in which nodes send each other the components of these models and
-//! of models built on them, keyed by the same minted ids. It holds no models of its own.
-
-// So that the code `#[derive(Minted)]` generates, which names this crate from outside, also
-// compiles on the crate's own models.
-extern crate self as koinon_commons;
+//! Every model is also a component of Ankurah's envelope, `#[derive(EnvelopeComponent)]`, in which
+//! nodes send each other these components keyed by the same minted ids, each property under a
+//! number of its own.
 
 pub mod authority;
 pub mod catalog;
-pub mod codec;
 pub mod component_ids;
 pub mod devices;
 pub mod jobs;

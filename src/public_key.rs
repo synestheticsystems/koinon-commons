@@ -1,10 +1,10 @@
 //! Public keys, by which components name stations, parties and applications: a station by its own
-//! record, where an authority is honoured, whom a permission slip is for, which application a
-//! request is for, and whose key signed an envelope that another carries.
+//! record, where an authority is honoured, whom a permission slip is for, and which application a
+//! request is for; and by which a reader asks whether an application's key signed an envelope.
 
 use std::fmt;
 
-use ankurah::{property::PropertyError, value::Value, Property};
+use ankurah::{envelope::Identity, property::PropertyError, value::Value, Property};
 use ed25519_dalek::VerifyingKey;
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +42,12 @@ impl PublicKey {
     /// The key's text: its 32 bytes as 64 lower-case hexadecimal digits.
     pub fn text(&self) -> String {
         lower_hex(&self.0)
+    }
+
+    /// The key as Ankurah's envelope names a signer, so that a reader asks whether it signed an
+    /// envelope.
+    pub fn identity(&self) -> Identity {
+        Identity::Ed25519(self.0)
     }
 }
 

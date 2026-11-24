@@ -1,241 +1,259 @@
-//! What a receiver refuses of a request whose components it understands: a component or a
-//! property its request requires and does not carry, named; a value its type's rule refuses;
-//! components that contradict each other; and a document that is not the one its print names.
+//! What a receiver refuses, and how the refusal reads to the sender: a request that holds a
+//! component the receiver must understand and does not, one that lacks a component its operation
+//! requires, one whose value its type refuses, and one that claims both kinds of authority; an
+//! application's endorsement of an address that is no host name; and what a receiver reads past.
 
-use ankurah::property::PropertyError;
-use koinon_commons::codec::{EncodeError, Properties, PropertyWriter, ReadError, ValueProblem};
-
-use super::{
-    checks::{carried_signed_request, opened_signed_request, place, requested, taken_document, Path},
-    *,
+use ankurah::{
+    envelope::{EnvelopeComponent, ReadError},
+    Model,
+};
+use ankurah_commons::requests::{AuthToken, Request, RequestId, Response};
+use koinon_commons::{
+    authority::{slip_token, AllowsRequests, AtDevices, ForApplication, HostName, Hosting, InvitationClaim, Retirement, SlipsVoided},
+    catalog::{operations::DoListCatalog, Catalog},
+    devices::{operations::DoListDevices, DeviceListing},
+    jobs::{
+        operations::{DoPrint, DoWeigh},
+        JobAttempt,
+    },
+    nodes::operations::DoImportEvents,
+    registry::{
+        operations::{DoEndRegistration, DoListRegistrations, DoRegister},
+        ForGrant, IdTokenSignIn, KeptRegistrations, Registration, ScopeChoices,
+    },
 };
 
-/// `PrintJob` as a sender writes it that holds the job's facts in looser types of its own, and
-/// may leave the document's hash out: under `PrintJob`'s ids, so that a station reads it as one.
-#[derive(Model, Debug, Clone)]
-#[model(label = "tests.loose_print_job")]
+use super::*;
+
+/// An operation a later version of the Koinon Commons adds, which this station does not know.
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
+#[model(id = "CAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg")]
 #[model(no_ffi)]
-pub struct LoosePrintJob {
+#[envelope(must_understand)]
+pub struct DoCut {}
+
+/// What a later version of a sender adds beside a print that a station may do without.
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
+#[model(id = "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk")]
+#[model(no_ffi)]
+pub struct PrintPriority {
+    #[envelope(number = 0)]
+    pub rank: i64,
+}
+
+/// `PrintJob` as a sender in another language writes it, with its copies as a bare number, which
+/// may be one that no `Copies` holds.
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
+#[model(id = "nQF-f7gcJIaahDZ02CJzwtanB7_YAW1t9NK1E0Ng-Nw")]
+#[model(no_ffi)]
+pub struct PrintJobWithAnyCopies {
     #[active_type(LWW)]
-    pub document_format: String,
+    #[envelope(number = 0)]
+    pub job_id: String,
+    #[active_type(LWW)]
+    #[envelope(number = 1)]
+    pub document_format: MimeType,
+    #[envelope(number = 2)]
     pub copies: i64,
     #[active_type(LWW)]
-    pub document_hash: Option<String>,
+    #[envelope(number = 3)]
+    pub document: ContentRef,
 }
 
-impl Minted for LoosePrintJob {
-    const ID: MintedId = PrintJob::ID;
-
-    fn write_properties(&self, properties: &mut PropertyWriter) -> Result<(), EncodeError> {
-        properties.write(property::<PrintJob>("document_format"), &self.document_format)?;
-        properties.write(property::<PrintJob>("copies"), &self.copies)?;
-        properties.write(property::<PrintJob>("document_hash"), &self.document_hash)
-    }
-
-    fn read_properties(properties: &Properties<'_>) -> Result<Self, ReadError> {
-        Ok(LoosePrintJob {
-            document_format: properties.read(property::<PrintJob>("document_format"))?,
-            copies: properties.read(property::<PrintJob>("copies"))?,
-            document_hash: properties.read(property::<PrintJob>("document_hash"))?,
-        })
-    }
-}
-
-/// `FirstScope` as a sender writes it that names the scope with any text: under `FirstScope`'s
-/// ids, so that a registry reads it as one.
-#[derive(Model, Debug, Clone)]
-#[model(label = "tests.loose_first_scope")]
+/// `Hosting` as a registry might write it, with its address as any text, which may be one that no
+/// `HostName` holds.
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
+#[model(id = "AX3KgpiVAyAjTj-_hzmYIUdNx9ZB2g4ndHP5O7JBnYY")]
 #[model(no_ffi)]
-pub struct LooseFirstScope {
+#[envelope(must_understand)]
+pub struct HostingAtAnyAddress {
     #[active_type(LWW)]
-    pub name: String,
-}
-
-impl Minted for LooseFirstScope {
-    const ID: MintedId = FirstScope::ID;
-
-    fn write_properties(&self, properties: &mut PropertyWriter) -> Result<(), EncodeError> {
-        properties.write(property::<FirstScope>("name"), &self.name)
-    }
-
-    fn read_properties(properties: &Properties<'_>) -> Result<Self, ReadError> {
-        Ok(LooseFirstScope { name: properties.read(property::<FirstScope>("name"))? })
-    }
-}
-
-/// `Hosting` as a registry writes it that gives the application's address as any text: under
-/// `Hosting`'s ids, so that a station reads it as one.
-#[derive(Model, Debug, Clone)]
-#[model(label = "tests.loose_hosting")]
-#[model(no_ffi)]
-pub struct LooseHosting {
-    #[active_type(LWW)]
+    #[envelope(number = 0)]
     pub registry: PublicKey,
     #[active_type(LWW)]
+    #[envelope(number = 1)]
     pub name: Name,
     #[active_type(LWW)]
+    #[envelope(number = 2)]
     pub address: String,
 }
 
-impl Minted for LooseHosting {
-    const ID: MintedId = Hosting::ID;
-
-    fn write_properties(&self, properties: &mut PropertyWriter) -> Result<(), EncodeError> {
-        properties.write(property::<Hosting>("registry"), &self.registry)?;
-        properties.write(property::<Hosting>("name"), &self.name)?;
-        properties.write(property::<Hosting>("address"), &self.address)
-    }
-
-    fn read_properties(properties: &Properties<'_>) -> Result<Self, ReadError> {
-        Ok(LooseHosting {
-            registry: properties.read(property::<Hosting>("registry"))?,
-            name: properties.read(property::<Hosting>("name"))?,
-            address: properties.read(property::<Hosting>("address"))?,
-        })
-    }
+// So that every receiver that does not know one refuses the request, naming it, rather than act
+// without it: each operation's tag or the component that names it, the token, a slip's body, its
+// party and each restriction, an application's hosting, retirement and voiding, and what tells one
+// registration from another. A listing, a reply's facts and a job's facts a receiver may do without.
+#[test]
+fn the_components_a_receiver_must_understand_are_flagged_so_and_no_others() {
+    let flagged = [
+        DoPrint::MUST_UNDERSTAND,
+        DoWeigh::MUST_UNDERSTAND,
+        DoListDevices::MUST_UNDERSTAND,
+        DoListRegistrations::MUST_UNDERSTAND,
+        DoRegister::MUST_UNDERSTAND,
+        DoEndRegistration::MUST_UNDERSTAND,
+        DoImportEvents::MUST_UNDERSTAND,
+        DoListCatalog::MUST_UNDERSTAND,
+        InvitationClaim::MUST_UNDERSTAND,
+        IdTokenSignIn::MUST_UNDERSTAND,
+        Retirement::MUST_UNDERSTAND,
+        SlipsVoided::MUST_UNDERSTAND,
+        AuthToken::MUST_UNDERSTAND,
+        PermissionSlip::MUST_UNDERSTAND,
+        Party::MUST_UNDERSTAND,
+        AtStations::MUST_UNDERSTAND,
+        AtDevices::MUST_UNDERSTAND,
+        AllowsRequests::MUST_UNDERSTAND,
+        Expiry::MUST_UNDERSTAND,
+        Hosting::MUST_UNDERSTAND,
+        ForApplication::MUST_UNDERSTAND,
+        Registration::MUST_UNDERSTAND,
+        ForGrant::MUST_UNDERSTAND,
+    ];
+    assert!(flagged.iter().all(|&flag| flag), "{flagged:?}");
+    let unflagged = [
+        Request::MUST_UNDERSTAND,
+        Response::MUST_UNDERSTAND,
+        ForDevice::MUST_UNDERSTAND,
+        PrintJob::MUST_UNDERSTAND,
+        JobLabel::MUST_UNDERSTAND,
+        JobAttempt::MUST_UNDERSTAND,
+        DeviceListing::MUST_UNDERSTAND,
+        Catalog::MUST_UNDERSTAND,
+        ScopeChoices::MUST_UNDERSTAND,
+        KeptRegistrations::MUST_UNDERSTAND,
+        Refusal::MUST_UNDERSTAND,
+        NotUnderstood::MUST_UNDERSTAND,
+    ];
+    assert!(unflagged.iter().all(|&flag| !flag), "{unflagged:?}");
 }
 
-/// A print without the device it is for is refused by the missing component's id.
-#[test]
-fn a_print_without_the_device_it_is_for_is_refused_naming_the_missing_component() -> Outcome {
-    let print = label_print();
-    let request = EnvelopeBuilder::new()
-        .add_must_understand(&Print {})?
-        .add(&print.job)?
-        .add(&print.print_job)?
-        .add_must_understand(&print.follows)?
-        .encode();
-    let refused = station_reads(&request)?.components().read::<(Print, JobId, ForDevice, PrintJob, DocumentFollows)>().unwrap_err();
-    assert!(matches!(refused, ReadError::MissingComponent { component } if component == ForDevice::ID), "{refused}");
+// A receiver cannot read the `Request` of a request that holds a component it must understand and
+// does not: every read refuses, naming that component. So the refusal names every such component,
+// and holds no `Response`, since the receiver cannot read the id it would name.
+#[tokio::test]
+async fn a_request_for_an_operation_the_station_does_not_know_is_refused_naming_it() -> Outcome {
+    let request = Envelope::new((Request { request_id: RequestId::new() }, DoCut {}, ForDevice { device: Ref::new(printer_record()) }))?;
+    let taken = received(&request).await?;
+    assert!(taken.has::<Request>());
+    let unread = taken.get::<Request>().unwrap_err();
+    assert!(matches!(&unread, ReadError::NotUnderstood { components } if *components == [DoCut::ID]), "{unread}");
+    let unread_as_a_weigh = taken.get::<(Request, DoWeigh, ForDevice)>().unwrap_err();
+    assert!(matches!(&unread_as_a_weigh, ReadError::NotUnderstood { components } if *components == [DoCut::ID]), "{unread_as_a_weigh}");
+
+    let ReadError::NotUnderstood { components } = unread else { unreachable!() };
+    let refusal =
+        Refusal { code: Refusal::NOT_UNDERSTOOD.into(), message: "the request holds components this station does not know".into() };
+    let answer = Envelope::new((refusal, NotUnderstood { components: ComponentIds::new(components)? }))?;
+    let (response, refused, not_understood) = received(&answer).await?.get::<(Option<Response>, Refusal, NotUnderstood)>()?;
+    assert_eq!((response, refused.code.as_str()), (None, Refusal::NOT_UNDERSTOOD));
+    assert_eq!(not_understood.components.ids(), [DoCut::ID]);
     Ok(())
 }
 
-/// A print whose particulars lack the document's hash is refused by the ids of the component and
-/// the missing property; and one that asks for no copies, or names its hash in another text, is
-/// refused by the rule of the property's type, as a stored record of it would be.
-#[test]
-fn a_print_job_that_lacks_a_property_or_breaks_its_types_rule_is_refused_naming_it() -> Outcome {
-    let read = |print_job: &LoosePrintJob| -> Result<PrintJob, ReadError> {
-        let request = EnvelopeBuilder::new().add(print_job).unwrap().encode();
-        station_reads(&request).expect("a station takes an envelope of a print job alone").components().read::<PrintJob>()
+#[tokio::test]
+async fn a_print_without_the_device_it_is_for_is_refused_as_a_bad_request_naming_the_component() -> Outcome {
+    let print = label_print();
+    let asked = RequestId::new();
+    let request = Envelope::new((Request { request_id: asked.clone() }, DoPrint {}, print.job.clone()))?;
+    let stream = sent(&request, Some(print.document)).await?;
+    let taken = envelope_of(&mut stream.as_slice()).await?;
+    let unread = taken.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>)>().unwrap_err();
+    assert!(matches!(&unread, ReadError::MissingComponent { component } if *component == ForDevice::ID), "{unread}");
+
+    // The station reads the request's id beside the operation it recognised, which it understands.
+    let (request, _) = taken.get::<(Request, DoPrint)>()?;
+    let (refusal, not_understood) = refusal_of(&received(&refusing(request.request_id, &unread)?).await?, &asked)?;
+    assert_eq!((refusal.code.as_str(), not_understood), (Refusal::BAD_REQUEST, None));
+    assert!(refusal.message.contains(&ForDevice::ID.to_string()), "{}", refusal.message);
+    Ok(())
+}
+
+// A value is read through its type's own rule, so that no sender, in any language, asks a printer
+// for no copies.
+#[tokio::test]
+async fn a_print_job_whose_copies_break_their_rule_is_refused_naming_the_property() -> Outcome {
+    let print = label_print();
+    let asked = RequestId::new();
+    let job = PrintJobWithAnyCopies {
+        job_id: print.job.job_id.clone(),
+        document_format: print.job.document_format.clone(),
+        copies: 0,
+        document: print.job.document,
     };
-    let hash = DocumentHash::from_bytes([0xab; 32]).text();
-    let loose = |copies, document_hash| LoosePrintJob { document_format: "application/x-zpl2".into(), copies, document_hash };
+    let request = Envelope::new((Request { request_id: asked.clone() }, DoPrint {}, print.device.clone(), job))?;
+    let taken = received(&request).await?;
+    let unread = taken.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>)>().unwrap_err();
+    assert!(matches!(&unread, ReadError::MalformedValue { component, number: 2, .. } if *component == PrintJob::ID), "{unread}");
 
-    assert_eq!(read(&loose(2, Some(hash.clone())))?.copies, Copies::new(2)?);
-    let refused = read(&loose(2, None)).unwrap_err();
-    let missing = property::<PrintJob>("document_hash");
-    assert!(
-        matches!(refused, ReadError::MissingProperty { component, property } if component == PrintJob::ID && property == missing),
-        "{refused}"
-    );
-    for (copies, document_hash, field) in
-        [(0, hash.clone(), "copies"), (-5, hash.clone(), "copies"), (2, hash.to_uppercase(), "document_hash")]
-    {
-        let refused = read(&loose(copies, Some(document_hash))).unwrap_err();
-        let expected = property::<PrintJob>(field);
-        assert!(
-            matches!(&refused, ReadError::MalformedValue { component, property: malformed, problem: ValueProblem::Refused(error) }
-                if *component == PrintJob::ID && *malformed == expected && matches!(**error, PropertyError::InvalidValue { .. })),
-            "{refused}"
-        );
-    }
+    let (request, _) = taken.get::<(Request, DoPrint)>()?;
+    let (refusal, _) = refusal_of(&received(&refusing(request.request_id, &unread)?).await?, &asked)?;
+    assert_eq!(refusal.code, Refusal::BAD_REQUEST);
     Ok(())
 }
 
-/// A first scope named with nothing but white space gives a registry nothing to list it by, and
-/// is refused by the rule of a name, naming the property.
-#[test]
-fn a_first_scope_with_a_blank_name_is_refused_naming_the_property() -> Outcome {
-    let request = EnvelopeBuilder::new().add(&LooseFirstScope { name: " \t".into() })?.encode();
-    let refused = registry_reads(&request)?.components().read::<FirstScope>().unwrap_err();
-    let name = property::<FirstScope>("name");
-    assert!(
-        matches!(&refused, ReadError::MalformedValue { component, property, problem: ValueProblem::Refused(error) }
-            if *component == FirstScope::ID && *property == name && matches!(**error, PropertyError::InvalidValue { .. })),
-        "{refused}"
-    );
-    Ok(())
-}
-
-/// An endorsement whose address is more than a host name, a host name written another way, an IP
-/// address in one of its spellings, or a name the host parser refuses, though the application's key
-/// signed it, is refused by the rule of a host name, naming the property, so that a station never
-/// compares such an address with the one its person typed.
-#[test]
-fn an_endorsement_of_an_address_that_is_no_host_name_is_refused_naming_the_property() -> Outcome {
-    let address = property::<Hosting>("address");
-    for written in ["https://acme.example.com", "acme.example.com/login", "Acme.example.com", "", "127.1", "127.0.0.1", "xn--a.pt"] {
-        let hosting = LooseHosting { registry: registry(), name: Name::new("Acme")?, address: written.into() };
-        let endorsement: SignedHosting = signed(EnvelopeBuilder::new().add_must_understand(&hosting)?);
-        let opened = endorsement.open(&Limits::default(), HOSTING_UNDERSTANDS)?;
-        let refused = opened.components().read::<Hosting>().unwrap_err();
-        assert!(
-            matches!(&refused, ReadError::MalformedValue { component, property, problem: ValueProblem::Refused(error) }
-                if *component == Hosting::ID && *property == address && matches!(**error, PropertyError::InvalidValue { .. })),
-            "{written:?}: {refused}"
-        );
-    }
-    Ok(())
-}
-
-/// A request asks one thing: one that carries two request components is refused, rather than
-/// answered as either.
-#[test]
-fn a_request_that_asks_two_things_is_refused_as_a_bad_request() -> Outcome {
-    let device = ForDevice { device: scale_record().into() };
-    let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add_must_understand(&ListDevices {})?.add(&device)?.encode();
-    let refused = requested(&station_reads(&request)?, &[]).unwrap_err();
-    assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
-    Ok(())
-}
-
-/// A registration names one place for the station: one that carries both a placement and a first
-/// scope is refused, rather than registered in either.
-#[test]
-fn a_registration_in_a_listed_scope_and_a_first_scope_at_once_is_refused_as_a_bad_request() -> Outcome {
-    let request = EnvelopeBuilder::new()
-        .add_must_understand(&Register {})?
-        .add(&ScopeAssignment { station: station_record().into() })?
-        .add(&Placement { scope: entity(20).into(), sub_scope: None })?
-        .add(&FirstScope { name: Name::new("Acme")? })?
-        .add_must_understand(&ForApplication { key: key_of(&application()) })?
-        .encode();
-    let refused = place(&registry_reads(&request)?.components()).unwrap_err();
-    assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
-    Ok(())
-}
-
-/// A request has its authority from a signature over it or from a slip beside it, never from both:
-/// a signed request that carries a slip inside is refused, rather than honoured under either.
-#[test]
-fn a_signed_request_that_carries_a_slip_inside_is_refused_as_a_bad_request() -> Outcome {
-    let presented = weeks_slip(&[])?;
-    let request = signed_request(|body| {
-        body.add_must_understand(&Weigh {})?.add(&ForDevice { device: scale_record().into() })?.add_must_understand(&presented)?;
-        Ok(())
-    })?;
-    let read = carried_signed_request(&carrying(&request)?)?;
-    let refused = opened_signed_request(&read, &Path::Direct).err().expect("the request is refused");
-    assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
-    Ok(())
-}
-
-/// A station takes the document after a print's envelope only whole and only as the print names
-/// it: a stream that ends early, or a document altered on the way, is refused before anything
-/// reaches the printer.
-#[test]
-fn a_document_that_ends_early_or_is_not_the_one_its_print_names_is_refused() -> Outcome {
+// A request has its authority from a signature over it or from a slip it presents, never both: a
+// reader of either kind finds the other's components, which it must understand and does not read.
+#[tokio::test]
+async fn a_request_signed_whole_that_also_presents_a_slip_is_read_as_neither() -> Outcome {
     let print = label_print();
-    let short = &print.document[..print.document.len() - 1];
-    let mut altered = print.document.to_vec();
-    altered[4] ^= 1;
-    for stream in [short, &altered] {
-        let refused = taken_document(&print.follows, &print.print_job, stream).unwrap_err();
-        assert_eq!(refused.code, Refusal::BAD_REQUEST, "{refused}");
-    }
-    // What follows the document on the stream is the next frame, which the document leaves alone.
-    let longer = [print.document, b"next"].concat();
-    assert_eq!(taken_document(&print.follows, &print.print_job, &longer)?, print.document);
+    let (stations, expiry) = this_station_for_five_minutes();
+    let request = Envelope::new((
+        Request { request_id: RequestId::new() },
+        DoPrint {},
+        print.device.clone(),
+        print.job.clone(),
+        stations,
+        expiry,
+        slip_token(&weeks_slip(&[DoPrint::ID])),
+    ))?;
+    let taken = received(&signed(request, &application())).await?;
+    let as_signed = taken.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>, AtStations, Expiry)>().unwrap_err();
+    assert!(matches!(&as_signed, ReadError::NotUnderstood { components } if *components == [AuthToken::ID]), "{as_signed}");
+    let under_slip = taken.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>, AuthToken)>().unwrap_err();
+    let ReadError::NotUnderstood { mut components } = under_slip else { panic!("{under_slip}") };
+    components.sort();
+    let mut restrictions = vec![AtStations::ID, Expiry::ID];
+    restrictions.sort();
+    assert_eq!(components, restrictions);
+    Ok(())
+}
+
+// So that a newer sender adds what an older station can do without, and the station still acts.
+#[tokio::test]
+async fn a_component_a_station_need_not_understand_is_read_past() -> Outcome {
+    let print = label_print();
+    let request = Envelope::new((
+        Request { request_id: RequestId::new() },
+        DoPrint {},
+        print.device.clone(),
+        print.job.clone(),
+        PrintPriority { rank: 1 },
+    ))?;
+    let stream = sent(&request, Some(print.document)).await?;
+    let mut stream = stream.as_slice();
+    let (_, _, device, job, label) = envelope_of(&mut stream).await?.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>)>()?;
+    assert_eq!((device, &job, label), (print.device, &print.job, None));
+    assert_eq!(attachment_of(&mut stream, &job.document).await?, print.document);
+    Ok(())
+}
+
+// An application's endorsement of a registry's hosting of it is an envelope of the hosting alone,
+// signed by the application's key, which a station reads from the registry's document as its exact
+// bytes; one whose address is no host name in the one form a host name is written in does not
+// read, naming the property, so that a station never compares its person's address with another
+// writing of it.
+#[test]
+fn an_endorsement_reads_only_with_an_address_that_is_a_host_name() -> Outcome {
+    let registry = key(6);
+    let hosting = Hosting { registry, name: Name::new("Acme")?, address: HostName::new("acme.example.com")? };
+    let endorsement = signed(Envelope::new(hosting.clone())?, &application());
+    let read = Envelope::decode(endorsement.bytes().clone(), &Limits::default())?;
+    assert!(read.is_signed_by(&key_of(&application()).identity()));
+    assert_eq!(read.get::<Hosting>()?, hosting);
+
+    let written = HostingAtAnyAddress { registry, name: Name::new("Acme")?, address: "Acme.example.com".into() };
+    let read = Envelope::decode(signed(Envelope::new(written)?, &application()).bytes().clone(), &Limits::default())?;
+    let unread = read.get::<Hosting>().unwrap_err();
+    assert!(matches!(&unread, ReadError::MalformedValue { component, number: 2, .. } if *component == Hosting::ID), "{unread}");
     Ok(())
 }

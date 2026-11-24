@@ -1,29 +1,34 @@
-use ankurah::{EntityId, Model};
+use ankurah::{envelope::EnvelopeComponent, EntityId, Model};
 use ankurah_commons::property::Timestamp;
 
-use crate::{authority::Expiry, codec::Minted};
+use crate::authority::Expiry;
 
 /// The body of a permission slip: the application whose key signs the slip lets the slip's party
 /// make the requests the slip allows, where and until the slip says. It is how an application's
 /// authority reaches a program that does not hold the application's key, such as a program on a
 /// warehouse's own network, while the key stays with whoever holds it, such as the application's
 /// registry, which signs a slip when a person, or a caller acting for the application, asks for
-/// one. It travels inside a `PresentedSlip`, whose signer is the application, beside the party it
-/// is for and the restrictions that say where, for what and until when the slip is honoured:
+/// one. A slip is an envelope of this, the party it is for and the restrictions that say where,
+/// for what and until when it is honoured, signed by the application's key:
 ///
 /// - `Party`, required: who the slip is for, by the key their connection proves;
 /// - `AtStations`, required: the stations at which the slip is honoured, which tell the party
 ///   where to dial;
 /// - `AtDevices`, optional: the devices at those stations to which the slip narrows;
-/// - `AllowsRequests`, required: the kinds of request the party may make;
+/// - `AllowsRequests`, required: the operations the party may ask for;
 /// - `Expiry`, required: until when it is honoured, no earlier than its issue and at most
 ///   [`PermissionSlip::MAX_LIFE_MS`] after it.
 ///
-/// A station honours a slip only where every restriction it carries is met. A slip that lacks
-/// `Party`, `AtStations`, `AllowsRequests` or `Expiry` is refused. A restriction that is optional
-/// and absent sets no limit of its own, so a restriction added later is optional and listed as one
-/// a receiver must understand: it can only narrow what a slip allows. The slip lists this
-/// component, its party and every restriction so.
+/// A request comes under the slip by an `AuthToken` whose format is this component's id and whose
+/// credential is the slip's envelope, its exact bytes ([`slip_token`]). A station honours a slip
+/// only where every restriction it carries is met, as [`check_slip`] checks. A slip that lacks
+/// `Party`, `AtStations`, `AllowsRequests` or `Expiry` is refused. A restriction that is optional and
+/// absent sets no limit of its own, so a restriction added later is optional and one a receiver
+/// must understand: it can only narrow what a slip allows. This component, the party and every
+/// restriction are ones a receiver must understand.
+///
+/// [`slip_token`]: crate::authority::slip_token
+/// [`check_slip`]: crate::authority::check_slip
 ///
 /// A station honours a slip while it shares its devices with the slip's application, and only one
 /// issued no earlier than the moment the application's registry wrote the station's registration
@@ -50,18 +55,21 @@ use crate::{authority::Expiry, codec::Minted};
 // OPEN: whether an application that a station's person paired with directly, with no registry,
 // may sign slips. The rules above apply either way; a station's check of the slip's signer names
 // the applications that may.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
 #[model(label = "authority.permission_slip")]
 #[model(id = "sW4D0xcq9TVaWSu6kyop7gXpHdCQcBjzagQOBaa_LYs")]
 #[model(no_ffi)]
+#[envelope(must_understand)]
 pub struct PermissionSlip {
     /// When the slip was issued, by its issuer's clock.
     #[property(id = "qjlXIUr2HftQP9Kf6lwBKiguJcEiczvr1VijjU5lWx0")]
+    #[envelope(number = 0)]
     pub issued: Timestamp,
     /// The slip's id, which no other slip of the application has: on a registry, the id of its
     /// record of the slip. A station's journal names by it the slip each job came under, so that a
     /// job can be traced to the slip and to whoever asked for it.
     #[property(id = "tcjLiCa1HVdnOEGYOGO8ycyPRiDc6wD57s23SN8wjvw")]
+    #[envelope(number = 1)]
     pub slip_id: EntityId,
 }
 

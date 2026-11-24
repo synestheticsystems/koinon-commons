@@ -7,9 +7,11 @@ mod placement;
 mod registrable;
 mod scope;
 mod scope_assignment;
+mod scope_choices;
 
 pub use first_scope::*;
 pub use placement::*;
 pub use registrable::*;
 pub use scope::*;
 pub use scope_assignment::*;
+pub use scope_choices::*;

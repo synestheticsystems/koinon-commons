@@ -1,13 +1,11 @@
 use std::{fmt, num::NonZeroU32};
 
 use ankurah::{property::PropertyError, value::Value, Property};
-use serde::{Deserialize, Serialize};
 
 /// How many copies a print makes: at least one, and fewer than 2^32. Stored as an `i64`; a
 /// number outside that range does not read, so that no sender can ask for none, or for less than
-/// none. In JSON, as `PrintJob` derives it, a number.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-#[serde(try_from = "i64", into = "i64")]
+/// none.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Copies(NonZeroU32);
 
 impl Copies {
@@ -71,17 +69,6 @@ mod tests {
         for copies in [1, 2, u32::MAX] {
             let copies = Copies::new(copies).unwrap();
             assert_eq!(Copies::from_value(copies.into_value().unwrap()).unwrap(), copies);
-        }
-    }
-
-    // The JSON form a print job's copies had before they had a type of their own, a number, so that
-    // a print job's JSON reads as before.
-    #[test]
-    fn copies_are_a_json_number_and_one_outside_the_range_does_not_read() {
-        assert_eq!(serde_json::to_value(Copies::new(2).unwrap()).unwrap(), serde_json::json!(2));
-        assert_eq!(serde_json::from_value::<Copies>(serde_json::json!(2)).unwrap(), Copies::new(2).unwrap());
-        for refused in [serde_json::json!(0), serde_json::json!(-5), serde_json::json!(1_u64 << 32)] {
-            assert!(serde_json::from_value::<Copies>(refused.clone()).is_err(), "{refused}");
         }
     }
 

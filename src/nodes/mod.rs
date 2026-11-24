@@ -4,7 +4,7 @@
 mod events;
 mod node_link;
 
-pub mod requests;
+pub mod operations;
 
 pub use events::*;
 pub use node_link::*;

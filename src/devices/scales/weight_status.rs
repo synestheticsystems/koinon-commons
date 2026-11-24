@@ -3,7 +3,7 @@ use crate::stored_forms::enum_stored_by_name;
 enum_stored_by_name! {
     /// Whether a scale's reading can be taken as the weight on it. Stored as its name in snake case,
     /// such as `in_motion`. A name this build does not know does not read: a status added later comes
-    /// in a component of its own, which its sender lists as one a receiver must understand.
+    /// in a component of its own, which a receiver must understand.
     pub enum WeightStatus {
         /// The scale has settled, and the value is the weight on it.
         Stable = "stable",

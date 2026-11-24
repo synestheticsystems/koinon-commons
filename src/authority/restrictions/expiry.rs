@@ -1,7 +1,5 @@
-use ankurah::Model;
+use ankurah::{envelope::EnvelopeComponent, Model};
 use ankurah_commons::property::Timestamp;
-
-use crate::codec::Minted;
 
 /// The moment after which a permission slip or a signed request is no longer honoured, so that a
 /// copy that leaks lapses by itself, with no station waiting on anyone to end it. Every slip and
@@ -9,12 +7,14 @@ use crate::codec::Minted;
 // OPEN: whether an expiry belongs in the Ankurah Commons, for any record that lapses, beside its
 // `Deferred`, the opposite moment. Lean: here for now, beside the authority it bounds, and the
 // general question put to the Ankurah Commons.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
 #[model(label = "authority.expiry")]
 #[model(id = "khmTklrBcgxzZEdATzyvhRvt_9HDLPPS8DYVyoQX_Ls")]
 #[model(no_ffi)]
+#[envelope(must_understand)]
 pub struct Expiry {
     #[property(id = "L4Egrh_tkS7SE2EQcSa6pu2kPSP8TqnXV01GIckHwlQ")]
+    #[envelope(number = 0)]
     pub expires: Timestamp,
 }
 

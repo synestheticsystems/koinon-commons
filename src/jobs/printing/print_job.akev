@@ -2,6 +2,26 @@
 nonce: IGkc5ZoW5sGapBwYcHS8MJ_NqiBQak3lUBH8PljlQjA, timestamp: 2026-11-20T06:53:45.583Z
 lww: { label: "jobs.print_job", name: "PrintJob" }, member: system:model
 
+[_Wh9DS3Ko5IWHPUD-LgOrAMvDFyYONjSDm3T_rMLZAU]
+nonce: FD1v_0u2tnFYyQhxTjLHgVZhA6eAuriHP1AMHne8uWo, timestamp: 2026-11-24T19:19:35.726Z
+lww: {
+    name: "job_id"
+    backend: "lww"
+    value_type: "string"
+    minted_for: $jobs.print_job
+    target_model: none
+}
+member: system:property
+
+[YdWu8zyqDU_MIacqnDgUv5mq17wNADvyvoQlR-te7cE]
+nonce: EoAZWPMUjBcaPmhfwNY-ptfgFJ9rr694V4CCymSnoWs, timestamp: 2026-11-24T19:19:35.726Z
+lww: {
+    model: $jobs.print_job
+    property: $job_id
+    optional: false
+}
+member: system:model-property
+
 [GSvYIeWQJj2N0WsQnFFj5xC5_RiVZrw3zm9G8GrZw38]
 nonce: i6ohNVhYbsbmn-4x4THgp8PBaAuiNesBc5uaYH6kq9Y, timestamp: 2026-11-20T08:13:34.153Z
 lww: {
@@ -42,22 +62,22 @@ lww: {
 }
 member: system:model-property
 
-[Z7r75Ma_rNFuTBAwbvGmB3GlALeAzz7CGFpkVlWMxc0]
-nonce: 1rsyduZ0wTmxDfeZdPYaxbk9rHHmfa2YwHIitXFaczw, timestamp: 2026-11-20T06:53:45.583Z
+[SFG98ogiC83p3FOODD0SvG35w2AINnC5wSBPR48VtXw]
+nonce: Giu17VNU-_o2A5XyU8uQ38fXClLJG-AISAgAu9z_CXc, timestamp: 2026-11-24T19:19:35.726Z
 lww: {
-    name: "document_hash"
+    name: "document"
     backend: "lww"
-    value_type: "string"
+    value_type: "binary"
     minted_for: $jobs.print_job
     target_model: none
 }
 member: system:property
 
-[HYZsC3LL84n3-oZCCnRgGsdo6C-Ki7_FAkG0BP3DRlg]
-nonce: KaW0iT92Qa96ZT38CqYsMkCiCIWFzVGE2Cx1VzUK72o, timestamp: 2026-11-20T06:53:45.583Z
+[p2xH_rxy8XNGHgvJhnBqkq1H2NsfrlhkBmp6pW8DaAM]
+nonce: i3r6P2aBcjmP72-pWgbReuR0t4nP8FkUW56AZEUxZf8, timestamp: 2026-11-24T19:19:35.727Z
 lww: {
     model: $jobs.print_job
-    property: $document_hash
+    property: $document
     optional: false
 }
 member: system:model-property

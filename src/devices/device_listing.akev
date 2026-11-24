@@ -1,0 +1,23 @@
+[5dQX5_KdTd7tVR5xmZFtVqCEjAkD1pX1KJvxd6jFzMw]
+nonce: Ptq-VZwQNk42X-Gn5-KWq62gbE1PTS2SV6ska9xogbk, timestamp: 2026-11-24T19:19:35.723Z
+lww: { label: "devices.device_listing", name: "DeviceListing" }, member: system:model
+
+[ChOR5oF6hL2ASAkDwLQ880qatEooaR4MC_uL4iGUtm0]
+nonce: GzGQe8LI3iJ407TuybzzykRDHzm2UpXHF7X6AmkHKBI, timestamp: 2026-11-24T19:19:35.723Z
+lww: {
+    name: "entries"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $devices.device_listing
+    target_model: none
+}
+member: system:property
+
+[s5wQh_lh4aPU__tJyAq19keaFyoXV34WSNeMNrzqRvI]
+nonce: -O2T3BFo7wIfNr3Dhq1ul0LMrXFREg0ZrK4b-fwUBWQ, timestamp: 2026-11-24T19:19:35.723Z
+lww: {
+    model: $devices.device_listing
+    property: $entries
+    optional: false
+}
+member: system:model-property

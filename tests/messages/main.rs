@@ -1,140 +1,49 @@
 //! Every message of koinon/pylon/2 and of the direct path, built from the Koinon Commons'
-//! components, encoded as an envelope, decoded as its receiver decodes it, and read back component
-//! by component: what a station asks its registry, what a registry asks a station, what a party
-//! asks a station on the direct path, and the replies to each; with the refusals the encoding and a
-//! station's checks of authority promise.
+//! components and the Ankurah Commons' `Request`, `Response` and `AuthToken`, sent through a stream
+//! as one envelope and at most one attachment, and read back as its receiver reads it, by the
+//! tuple of components it names: what a station asks its registry, what a registry asks a
+//! station, what a party asks a station on the direct path, and the answers to each; with the
+//! refusals the envelope and a station's checks of authority give.
 
-mod authorities;
-mod checks;
 mod direct;
-mod records;
 mod refusals;
 mod to_registry;
 mod to_station;
-mod understanding;
 
 use std::error::Error;
 
-use ankurah::{EntityId, Model};
-use ankurah_commons::{dimension::Dimension, property::Timestamp};
-use checks::Refused;
-use ed25519_dalek::SigningKey;
+use ankurah::{
+    envelope::{
+        message::{self, ReceiveError},
+        ContentRef, EntityRow, EntityRows, Envelope, EnvelopeComponent, Limits, ReadError, Signature,
+    },
+    property::Ref,
+    EntityId,
+};
+use ankurah_commons::{
+    dimension::Dimension,
+    property::Timestamp,
+    requests::{RequestId, Response},
+};
+use ed25519_dalek::{Signer, SigningKey};
 use koinon_commons::{
-    authority::{
-        requests::{ClaimInvitation, Retire, VoidSlips},
-        AllowsRequests, AtDevices, AtStations, Expiry, ForApplication, HostName, Hosting, InvitationClaim, Party, PermissionSlip,
-        PresentedSlip, Retirement, Signed, SignedHosting, SignedRequest, SignedRetirement, SlipsVoided,
-    },
-    catalog::{requests::GetCatalog, PrinterFingerprint},
-    codec::{DecodeError, EnvelopeBuilder, Limits, Minted, MintedId, ReceivedEnvelope, SealedEnvelope},
+    authority::{AllowsRequests, AtStations, Expiry, Party, PermissionSlip, SignedRequestCheck, SlipCheck},
     component_ids::ComponentIds,
-    devices::DeviceIds,
-    devices::{requests::ListDevices, Device, Media, Printer, Scale, ScaleReading, Station},
-    jobs::{
-        requests::{Print, Weigh},
-        Copies, DocumentFollows, DocumentHash, DocumentLength, ForDevice, JobAttempt, JobFailure, JobId, JobLabel, PrintJob,
-    },
+    devices::{Device, Media, Printer, Scale, Station},
+    jobs::{operations::DoPrint, operations::DoWeigh, Copies, ForDevice, JobLabel, PrintJob},
     mime_type::{MimeType, MimeTypes},
     name::Name,
-    nodes::{requests::PushEvents, Events},
     public_key::{PublicKey, PublicKeys},
-    registry::{
-        requests::{Hello, Register, SignIn, StopSharing},
-        FirstScope, ForGrant, IdTokenSignIn, Placement, Registrable, Registration, Scope, ScopeAssignment, SignedInPerson,
-    },
-    replies::{Done, NotUnderstood, Refusal},
+    replies::{NotUnderstood, Refusal},
 };
 
 type Outcome = Result<(), Box<dyn Error>>;
 
-/// What a station reads of the envelope a request comes in, whichever path brought it: the
-/// requests it takes, their facts, and the carriers of their authority. It reads what a carrier
-/// carries as a reader of that kind of statement, with a list of its own.
-const STATION_UNDERSTANDS: &[MintedId] = &[
-    Print::ID,
-    Weigh::ID,
-    ListDevices::ID,
-    ClaimInvitation::ID,
-    Retire::ID,
-    VoidSlips::ID,
-    ForDevice::ID,
-    JobId::ID,
-    JobLabel::ID,
-    PrintJob::ID,
-    DocumentFollows::ID,
-    InvitationClaim::ID,
-    SlipsVoided::ID,
-    ForApplication::ID,
-    SignedRequest::ID,
-    PresentedSlip::ID,
-    SignedRetirement::ID,
-];
+/// The most bytes an envelope may take on the stream, which a receiver refuses beyond.
+const ENVELOPE_LIMIT: u32 = 1 << 20;
 
-/// What a station reads inside a request signed whole: the requests it takes so, their facts and
-/// their restrictions; and the carriers, which it refuses there.
-const SIGNED_REQUEST_UNDERSTANDS: &[MintedId] = &[
-    Print::ID,
-    Weigh::ID,
-    ListDevices::ID,
-    ForDevice::ID,
-    JobId::ID,
-    JobLabel::ID,
-    PrintJob::ID,
-    DocumentFollows::ID,
-    AtStations::ID,
-    Expiry::ID,
-    SignedRequest::ID,
-    PresentedSlip::ID,
-];
-
-/// What a station reads inside a permission slip: its body, its party and its restrictions.
-const SLIP_UNDERSTANDS: &[MintedId] = &[PermissionSlip::ID, Party::ID, AtStations::ID, AtDevices::ID, AllowsRequests::ID, Expiry::ID];
-
-/// What a station reads inside an application's retirement.
-const RETIREMENT_UNDERSTANDS: &[MintedId] = &[Retirement::ID];
-
-/// What a station reads inside an application's endorsement of a registry's hosting of it.
-const HOSTING_UNDERSTANDS: &[MintedId] = &[Hosting::ID];
-
-/// What a registry reads of a station's request.
-const REGISTRY_UNDERSTANDS: &[MintedId] = &[
-    Hello::ID,
-    SignIn::ID,
-    Register::ID,
-    PushEvents::ID,
-    GetCatalog::ID,
-    StopSharing::ID,
-    IdTokenSignIn::ID,
-    ScopeAssignment::ID,
-    Placement::ID,
-    FirstScope::ID,
-    ForApplication::ID,
-    ForGrant::ID,
-    Events::ID,
-];
-
-/// What a station, a registry or a party reads of a reply to its request.
-const REPLIES_UNDERSTOOD: &[MintedId] = &[
-    Done::ID,
-    Refusal::ID,
-    NotUnderstood::ID,
-    Registration::ID,
-    ForApplication::ID,
-    SignedRetirement::ID,
-    SlipsVoided::ID,
-    SignedInPerson::ID,
-    Scope::ID,
-    Registrable::ID,
-    Media::ID,
-    PrinterFingerprint::ID,
-    Device::ID,
-    Printer::ID,
-    Scale::ID,
-    Station::ID,
-    JobAttempt::ID,
-    JobFailure::ID,
-    ScaleReading::ID,
-];
+/// The most bytes an attachment may take, which a station refuses beyond before it reads any.
+const ATTACHMENT_LIMIT: u64 = 64 << 20;
 
 /// The moment the requests are made at, in milliseconds since 1970.
 const NOW: i64 = 1_794_600_000_000;
@@ -149,77 +58,22 @@ fn at(millis: i64) -> Timestamp {
     Timestamp::from_unix_millis(millis)
 }
 
-/// The clock by which a registry gives the moments a station compares exactly, a slip's issue, a
-/// registration's and a voiding's, under the rules `PermissionSlip` sets out: each later than every
-/// one it gave before, the millisecond after the last one whenever its own clock reads that one or
-/// an earlier one; each kept before it is handed out, here in `last`, which a registry that restarts
-/// reads back; and a slip handed out only once the registry's clock has reached its moment.
-#[derive(Default)]
-struct RegistryClock {
-    /// The last moment the registry gave, as its store keeps it.
-    last: Option<i64>,
+fn signing_key(seed: u8) -> SigningKey {
+    SigningKey::from_bytes(&[seed; 32])
 }
 
-/// A slip's issue, as a registry gives it: the moment the slip is issued under, and the moment by
-/// the registry's clock at which it hands the slip out, having waited for its clock to reach it.
-struct Issue {
-    moment: i64,
-    handed_out: i64,
+fn key(seed: u8) -> PublicKey {
+    PublicKey::from(signing_key(seed).verifying_key())
 }
 
-impl RegistryClock {
-    /// The clock of a registry that has restarted, or whose clock was set back, which carries on
-    /// from `last`, the last moment it gave, as its store kept it.
-    fn resumed(last: i64) -> Self {
-        RegistryClock { last: Some(last) }
-    }
-
-    /// The moment the registry gives a registration or a voiding when its own clock reads `now`,
-    /// kept before it is handed out.
-    fn moment(&mut self, now: i64) -> i64 {
-        let moment = self.last.map_or(now, |last| now.max(last + 1));
-        self.last = Some(moment);
-        moment
-    }
-
-    /// A slip's issue when the registry's clock reads `now`: the next moment, handed out once the
-    /// registry's clock reads it, which is at once unless that moment lies ahead of its clock.
-    fn slip(&mut self, now: i64) -> Issue {
-        let moment = self.moment(now);
-        Issue { moment, handed_out: moment.max(now) }
-    }
+fn key_of(secret: &SigningKey) -> PublicKey {
+    PublicKey::from(secret.verifying_key())
 }
 
 /// The secret key of the application whose authority the requests carry, which came to the
 /// station through a registry.
 fn application() -> SigningKey {
-    SigningKey::from_bytes(&[1; 32])
-}
-
-/// The secret key of a computer the station's person paired with the station directly, which is
-/// the computer's application.
-fn paired_computer() -> SigningKey {
-    SigningKey::from_bytes(&[5; 32])
-}
-
-/// The key of a computer that claims an invitation to pair with the station, which the station
-/// does not share its devices with yet.
-fn claiming_computer() -> PublicKey {
-    key(12)
-}
-
-/// The key of an application the station shared its devices with until the key retired itself,
-/// whose record the station closed then, keeping the retirement on it.
-fn retired_application() -> PublicKey {
-    key(11)
-}
-
-fn key(seed: u8) -> PublicKey {
-    PublicKey::from(SigningKey::from_bytes(&[seed; 32]).verifying_key())
-}
-
-fn key_of(secret: &SigningKey) -> PublicKey {
-    PublicKey::from(secret.verifying_key())
+    signing_key(1)
 }
 
 /// The station the requests are for.
@@ -227,20 +81,9 @@ fn station() -> PublicKey {
     key(2)
 }
 
-/// The key of the iroh endpoint of the registry that hosts the application, through which the
-/// application came to the station.
-fn registry() -> PublicKey {
-    key(6)
-}
-
 /// The party a permission slip is for.
 fn party() -> PublicKey {
     key(3)
-}
-
-/// A party of the application that the station's person blocked.
-fn blocked_party() -> PublicKey {
-    key(8)
 }
 
 fn entity(byte: u8) -> EntityId {
@@ -260,154 +103,100 @@ fn scale_record() -> EntityId {
     entity(12)
 }
 
-/// `bytes` decoded as a receiver that understands `understood` decodes them, within the default
-/// limits.
-fn decoded<'a>(bytes: &'a [u8], understood: &[MintedId]) -> Result<ReceivedEnvelope<'a>, DecodeError> {
-    ReceivedEnvelope::decode(bytes, &Limits::default(), understood)
-}
-
-/// `bytes` decoded as a station decodes a request, whichever path brought it: as a reader of the
-/// envelope's own components, since a request carries no records, within the default limits. An
-/// envelope it cannot take is refused, with what the refusal says.
-fn station_reads(bytes: &[u8]) -> Result<ReceivedEnvelope<'_>, Refused> {
-    Ok(ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), STATION_UNDERSTANDS)?)
-}
-
-/// `bytes` decoded as a registry decodes a station's request: as a reader of the envelope's own
-/// components, within the default limits. An envelope it cannot take is refused, with what the
-/// refusal says.
-fn registry_reads(bytes: &[u8]) -> Result<ReceivedEnvelope<'_>, Refused> {
-    Ok(ReceivedEnvelope::decode_own_components(bytes, &Limits::default(), REGISTRY_UNDERSTANDS)?)
-}
-
-/// `body`, encoded, as the application's key signs it under the carrier `C`.
-fn signed<C: Signed>(body: &EnvelopeBuilder) -> C {
-    signed_by(&application(), body)
-}
-
-/// `body`, encoded, as `key` signs it under the carrier `C`.
-fn signed_by<C: Signed>(key: &SigningKey, body: &EnvelopeBuilder) -> C {
-    C::sign(SealedEnvelope::new(body.encode()), key)
-}
-
-/// A permission slip the application signed for the party, at the station, issued at `issued` and
-/// expiring at `expires`, for the requests `allows`, narrowed to `devices` when there are any.
-fn presented_slip(issued: i64, expires: i64, allows: &[MintedId], devices: &[EntityId]) -> Result<PresentedSlip, Box<dyn Error>> {
-    presented_slip_for(&party(), issued, expires, allows, devices)
-}
-
-/// A permission slip as [`presented_slip`] makes one, for the party whose key is `party_key`.
-fn presented_slip_for(
-    party_key: &PublicKey,
-    issued: i64,
-    expires: i64,
-    allows: &[MintedId],
-    devices: &[EntityId],
-) -> Result<PresentedSlip, Box<dyn Error>> {
-    let mut envelope = EnvelopeBuilder::new();
+/// `envelope` signed by `signer`, as an application signs a request or a slip.
+fn signed(mut envelope: Envelope, signer: &SigningKey) -> Envelope {
+    let identity = key_of(signer).identity();
+    let signature = signer.sign(&envelope.signed_bytes(&identity));
+    envelope.add_signature(&identity, &Signature::Ed25519(signature.to_bytes())).unwrap();
     envelope
-        .add_must_understand(&PermissionSlip { issued: at(issued), slip_id: entity(30) })?
-        .add_must_understand(&Party { key: *party_key, name: Name::new("Warehouse label PC")? })?
-        .add_must_understand(&AtStations { stations: PublicKeys::new(vec![station()])? })?
-        .add_must_understand(&AllowsRequests { requests: ComponentIds::new(allows.to_vec())? })?
-        .add_must_understand(&Expiry { expires: at(expires) })?;
-    if !devices.is_empty() {
-        envelope.add_must_understand(&AtDevices { devices: DeviceIds::new(devices.iter().map(|&device| device.into()).collect())? })?;
-    }
-    Ok(signed(&envelope))
 }
 
-/// A week's slip for prints and weighs, issued a minute ago, narrowed to `devices` when there are
-/// any.
-fn weeks_slip(devices: &[EntityId]) -> Result<PresentedSlip, Box<dyn Error>> {
-    presented_slip(NOW - MINUTE, NOW + 7 * 24 * 60 * MINUTE, &[Print::ID, Weigh::ID], devices)
+/// The stream of one message, `envelope` and `attachment` when there is one, as its sender writes
+/// it.
+async fn sent(envelope: &Envelope, attachment: Option<&[u8]>) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut stream = Vec::new();
+    message::write(&mut stream, envelope, attachment).await?;
+    Ok(stream)
 }
 
-/// `components` in a request that `key` signs for the stations `stations`, expiring at `expires`.
-fn signed_request_by(
-    key: &SigningKey,
-    stations: &[PublicKey],
-    expires: i64,
-    components: impl FnOnce(&mut EnvelopeBuilder) -> Outcome,
-) -> Result<SignedRequest, Box<dyn Error>> {
-    let mut body = EnvelopeBuilder::new();
-    components(&mut body)?;
-    body.add_must_understand(&AtStations { stations: PublicKeys::new(stations.to_vec())? })?
-        .add_must_understand(&Expiry { expires: at(expires) })?;
-    Ok(signed_by(key, &body))
+/// The envelope at the head of `stream`, as its receiver reads it, before it decides whether to
+/// read anything more.
+async fn envelope_of(stream: &mut &[u8]) -> Result<Envelope, ReceiveError> {
+    message::read_envelope(stream, ENVELOPE_LIMIT, &Limits::default()).await
 }
 
-/// `components` in a request the application signs for this station alone, for the five minutes
-/// a registry's gateway gives a job to reach a station.
-fn signed_request(components: impl FnOnce(&mut EnvelopeBuilder) -> Outcome) -> Result<SignedRequest, Box<dyn Error>> {
-    signed_request_by(&application(), &[station()], NOW + 5 * MINUTE, components)
+/// The attachment that follows the envelope on `stream`, as its receiver takes it once it is the
+/// one `document` names, and nothing after it.
+async fn attachment_of(stream: &mut &[u8], document: &ContentRef) -> Result<Vec<u8>, ReceiveError> {
+    let mut spool = Vec::new();
+    message::read_attachment(stream, document, ATTACHMENT_LIMIT, &mut spool).await?;
+    Ok(spool)
 }
 
-/// The envelope a signed request travels in: the carrier alone, listed so that a station too old
-/// to check a signature refuses it rather than ignores it.
-fn carrying(request: &SignedRequest) -> Result<Vec<u8>, Box<dyn Error>> {
-    Ok(EnvelopeBuilder::new().add_must_understand(request)?.encode())
+/// The message `envelope` makes alone, read by its receiver, who takes no attachment after it.
+async fn received(envelope: &Envelope) -> Result<Envelope, Box<dyn Error>> {
+    let stream = sent(envelope, None).await?;
+    let mut stream = stream.as_slice();
+    let received = envelope_of(&mut stream).await?;
+    message::read_end(&mut stream).await?;
+    Ok(received)
 }
 
-/// The minted id that `C`'s struct declares for the property of its field `field`.
-fn property<C: Minted>(field: &str) -> MintedId {
-    let declared = C::descriptor().properties.iter().find(|property| property.field == field).unwrap();
-    MintedId::from_bytes(EntityId::from_base64(declared.explicit_id.unwrap()).unwrap().to_bytes())
+/// The rows `rows` holds, each read as its reader reads it, within the default limits.
+fn rows_of(rows: &EntityRows) -> Result<Vec<EntityRow>, Box<dyn Error>> {
+    Ok(rows.read(&Limits::default())?)
 }
 
-/// A label printed by its own language, ZPL, and every fact of a print of it but its authority.
+/// What the station knows when it checks a slip the party presents on its own connection.
+fn slip_check<'a>(application: &'a PublicKey, party: &'a PublicKey, station: &'a PublicKey) -> SlipCheck<'a> {
+    SlipCheck { application, party, station, honoured_from: at(REGISTERED), now: at(NOW) }
+}
+
+/// What the station knows when it checks a request signed whole.
+fn signed_request_check<'a>(application: &'a PublicKey, station: &'a PublicKey) -> SignedRequestCheck<'a> {
+    SignedRequestCheck { application, station, now: at(NOW) }
+}
+
+/// A week's permission slip the application signed for the party, at this station, issued a minute
+/// ago, for the operations whose tags' ids are `allows`.
+fn weeks_slip(allows: &[EntityId]) -> Envelope {
+    let slip = Envelope::new((
+        PermissionSlip { issued: at(NOW - MINUTE), slip_id: entity(30) },
+        Party { key: party(), name: Name::new("Warehouse label PC").unwrap() },
+        AtStations { stations: PublicKeys::new(vec![station()]).unwrap() },
+        AllowsRequests { requests: ComponentIds::new(allows.to_vec()).unwrap() },
+        Expiry { expires: at(NOW + 7 * 24 * 60 * MINUTE) },
+    ))
+    .unwrap();
+    signed(slip, &application())
+}
+
+/// For a request signed whole: this station alone, for the five minutes a registry's gateway gives
+/// a job to reach a station.
+fn this_station_for_five_minutes() -> (AtStations, Expiry) {
+    (AtStations { stations: PublicKeys::new(vec![station()]).unwrap() }, Expiry { expires: at(NOW + 5 * MINUTE) })
+}
+
+/// A label printed in its own language, ZPL, and every fact of a print of it but its authority.
 struct LabelPrint {
     document: &'static [u8],
-    job: JobId,
     device: ForDevice,
     label: JobLabel,
-    print_job: PrintJob,
-    follows: DocumentFollows,
+    job: PrintJob,
 }
 
 fn label_print() -> LabelPrint {
     let document: &[u8] = b"^XA^FO50,50^ADN,36,20^FDOrder 1001^FS^XZ";
     LabelPrint {
         document,
-        job: JobId { job: "order-1001-label".into() },
-        device: ForDevice { device: printer_record().into() },
+        device: ForDevice { device: Ref::new(printer_record()) },
         label: JobLabel { name: "Order 1001".into(), asked_by: Some("packer-7".into()) },
-        print_job: PrintJob {
+        job: PrintJob {
+            job_id: "order-1001-label".into(),
             document_format: MimeType::new("application/x-zpl2").unwrap(),
             copies: Copies::new(2).unwrap(),
-            document_hash: DocumentHash::of(document),
+            document: ContentRef::to(document),
         },
-        follows: DocumentFollows { length: DocumentLength::new(document.len() as u64).unwrap() },
-    }
-}
-
-/// A print as a station reads it from an envelope: the request, its facts, and how its document
-/// follows.
-type ReadPrint = (Print, JobId, ForDevice, Option<JobLabel>, PrintJob, DocumentFollows);
-
-impl LabelPrint {
-    /// Adds the print's own components to `envelope`: the request, its facts, and the document's
-    /// length, which changes how the stream is read.
-    fn add_to(&self, envelope: &mut EnvelopeBuilder) -> Outcome {
-        envelope
-            .add_must_understand(&Print {})?
-            .add(&self.job)?
-            .add(&self.device)?
-            .add(&self.label)?
-            .add(&self.print_job)?
-            .add_must_understand(&self.follows)?;
-        Ok(())
-    }
-
-    /// Checks what a station read of the print against what was sent, and that the station takes
-    /// from the stream, by what it read, the document the sender sent after the envelope.
-    fn read_back(&self, read: ReadPrint) {
-        let (_, job, device, label, print_job, follows) = read;
-        assert_eq!(
-            (&job, &device, &label, &print_job, &follows),
-            (&self.job, &self.device, &Some(self.label.clone()), &self.print_job, &self.follows)
-        );
-        assert_eq!(checks::taken_document(&follows, &print_job, self.document), Ok(self.document));
     }
 }
 
@@ -416,7 +205,7 @@ impl LabelPrint {
 fn printer() -> (Device, Printer, Media) {
     let formats = ["application/vnd.cups-raw", "application/x-zpl2", "application/pdf"].map(|format| MimeType::new(format).unwrap());
     (
-        Device { station: station_record().into(), system_name: "Zebra_ZD421".into(), name: "Pack bench 3 labels".into() },
+        Device { station: Ref::new(station_record()), system_name: "Zebra_ZD421".into(), name: "Pack bench 3 labels".into() },
         Printer { driver: "Zebra ZPL Label Printer".into(), document_formats: MimeTypes::new(formats.to_vec()).unwrap() },
         stock("4x6", 101.6, Some(152.4)),
     )
@@ -428,7 +217,7 @@ fn stock(name: &str, width: f64, height: Option<f64>) -> Media {
 }
 
 fn scale() -> Device {
-    Device { station: station_record().into(), system_name: "SN 4411".into(), name: "Pack bench 3 scale".into() }
+    Device { station: Ref::new(station_record()), system_name: "SN 4411".into(), name: "Pack bench 3 scale".into() }
 }
 
 /// The station's own record.
@@ -436,47 +225,40 @@ fn station_itself() -> Station {
     Station { public_key: station(), name: "Pack bench 3".into() }
 }
 
-/// A refusal as its asker reads it from a reply: the `Refusal`, and the `NotUnderstood` beside it
-/// when the side asked did not understand components the request listed as ones it must.
-#[derive(Debug, PartialEq)]
-struct ReceivedRefusal {
-    refusal: Refusal,
-    not_understood: Option<NotUnderstood>,
+/// The response that refuses the request `request_id` because its receiver could not read it as
+/// one it takes, as a receiver writes it: as `not_understood`, with a `NotUnderstood` that names
+/// every component flagged so that it does not understand, so that the sender learns them all in
+/// one answer; and as `bad_request` for a component or a property it lacks or cannot read.
+fn refusing(request_id: RequestId, unread: &ReadError) -> Result<Envelope, Box<dyn Error>> {
+    let message = unread.to_string();
+    let refusal = match unread {
+        ReadError::NotUnderstood { components } => (
+            Response { request_id },
+            Refusal { code: Refusal::NOT_UNDERSTOOD.into(), message },
+            Some(NotUnderstood { components: ComponentIds::new(components.clone())? }),
+        ),
+        _ => (Response { request_id }, Refusal { code: Refusal::BAD_REQUEST.into(), message }, None),
+    };
+    Ok(Envelope::new(refusal)?)
 }
 
-/// A reply, read as its asker reads one, which tells its kind before it reads what that kind
-/// requires: the refusal, when the reply carries `Refusal`, with what it did not understand, and
-/// otherwise the answer, which `answer` reads from it.
-fn reply<T>(
-    bytes: &[u8],
-    answer: impl FnOnce(&ReceivedEnvelope<'_>) -> Result<T, Box<dyn Error>>,
-) -> Result<Result<T, ReceivedRefusal>, Box<dyn Error>> {
-    let received = decoded(bytes, REPLIES_UNDERSTOOD)?;
-    match received.components().read::<Option<Refusal>>()? {
-        Some(refusal) => Ok(Err(ReceivedRefusal { refusal, not_understood: received.components().read()? })),
-        None => Ok(Ok(answer(&received)?)),
+/// The refusal a response carries, read as its asker reads a response, which tells a refusal from
+/// an answer before it reads what an answer holds: the `Refusal`, with the `NotUnderstood` beside
+/// it when there is one, once the response names the request `asked`.
+fn refusal_of(response: &Envelope, asked: &RequestId) -> Result<(Refusal, Option<NotUnderstood>), Box<dyn Error>> {
+    let (answered, refusal, not_understood) = response.get::<(Response, Option<Refusal>, Option<NotUnderstood>)>()?;
+    assert_eq!(&answered.request_id, asked, "the response names the request it answers");
+    Ok((refusal.ok_or("the response is an answer, not a refusal")?, not_understood))
+}
+
+/// The operations a station offers on each kind of device, for the listing a slip narrows: a
+/// printer prints and a scale weighs.
+fn operation_of(row: &EntityRow) -> Option<EntityId> {
+    if row.has::<Printer>() {
+        Some(DoPrint::ID)
+    } else if row.has::<Scale>() {
+        Some(DoWeigh::ID)
+    } else {
+        None
     }
-}
-
-/// What a station answers a request with that asks for nothing back, read as the asker reads it.
-fn assert_done(bytes: &[u8]) -> Outcome {
-    assert_eq!(reply(bytes, |answer| Ok(answer.components().read::<Done>()?))?, Ok(Done {}));
-    Ok(())
-}
-
-fn done() -> Vec<u8> {
-    EnvelopeBuilder::new().add(&Done {}).unwrap().encode()
-}
-
-/// The refusal that `bytes` carry, read as the asker reads a reply.
-fn refusal_of(bytes: &[u8]) -> Result<ReceivedRefusal, Box<dyn Error>> {
-    match reply(bytes, |_| Ok(()))? {
-        Err(refused) => Ok(refused),
-        Ok(()) => Err("the reply is an answer, not a refusal".into()),
-    }
-}
-
-/// The code of the refusal that `bytes` carry, read as the asker reads a reply.
-fn refusal_code(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
-    Ok(refusal_of(bytes)?.refusal.code)
 }

@@ -1,153 +1,163 @@
-//! What a registry asks a station down the connection the station holds to it: a caller's print
-//! or weigh through its gateway, signed whole with the application's key, and the news of an
-//! application's retirement or of its voided slips.
+//! What a registry asks a station, down the connection the station holds to it, and how the
+//! station answers: a caller's print and weigh, signed whole by the application they come from,
+//! with a print's document after the envelope; the news that an application retired its key; and
+//! a voiding of an application's slips.
 
+use ankurah_commons::requests::{Request, RequestId, Response};
 use koinon_commons::{
-    devices::{WeightStatus, WeightUnit, WeightValue},
-    jobs::AttemptState,
+    authority::{check_signed_request, ForApplication, Retirement, SlipsVoided},
+    devices::{ScaleReading, WeightStatus, WeightUnit, WeightValue},
+    jobs::{
+        operations::{DoPrint, DoWeigh},
+        AttemptState, JobAttempt, JobFailure,
+    },
 };
 
-use super::{
-    checks::{carried_signed_request, opened_signed_request, voiding, Path},
-    *,
-};
+use super::*;
 
-/// What a station answers a print with: the job's attempt, with how it failed when it did; or the
-/// refusal of a print the station did not take.
-type Answered = Result<(JobAttempt, Option<JobFailure>), ReceivedRefusal>;
-
-/// What a station answers a print with, read as the registry reads it to pass it on to the caller:
-/// a refusal when the answer carries one, which carries no attempt, and otherwise the job's
-/// attempt, with a `JobFailure` beside it when the attempt failed and beside no other, as
-/// `JobFailure` sets out, so that the registry never passes on a failure with no word of how, nor
-/// one beside an attempt that did not fail.
-fn read_attempt(answer: &[u8]) -> Result<Answered, Box<dyn Error>> {
-    reply(answer, |answer| {
-        let (attempt, failure) = answer.components().read::<(JobAttempt, Option<JobFailure>)>()?;
-        if (attempt.state == AttemptState::Failed) != failure.is_some() {
-            return Err("a failure comes beside a failed attempt, and beside no other".into());
-        }
-        Ok((attempt, failure))
-    })
+/// The gateway's print of the label, signed whole by the application, for this station alone.
+fn gateway_print(print: &LabelPrint, asked: &RequestId) -> Result<Envelope, Box<dyn Error>> {
+    let (stations, expiry) = this_station_for_five_minutes();
+    let request = Envelope::new((
+        Request { request_id: asked.clone() },
+        DoPrint {},
+        print.device.clone(),
+        print.job.clone(),
+        print.label.clone(),
+        stations,
+        expiry,
+    ))?;
+    Ok(signed(request, &application()))
 }
 
-/// A caller's print through a registry's gateway, signed whole, read by the station from inside
-/// the signature, its document taken from after the envelope, and the job's attempt back once the
-/// station has handed the job to the printer.
-#[test]
-fn a_gateway_print_is_signed_whole_and_answered_with_its_sent_attempt() -> Outcome {
+/// What the station reads of a gateway's print on `stream`: the envelope, its authority checked
+/// before anything more is read, and then the document the print names.
+async fn station_takes_print(stream: &[u8]) -> Result<(Request, ForDevice, PrintJob, Option<JobLabel>, Vec<u8>), Box<dyn Error>> {
+    let mut stream = stream;
+    let envelope = envelope_of(&mut stream).await?;
+    let (request, _, device, job, label, stations, expiry) =
+        envelope.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>, AtStations, Expiry)>()?;
+    let (application, station) = (key_of(&application()), station());
+    check_signed_request(&envelope, &stations, &expiry, &signed_request_check(&application, &station))?;
+    let document = attachment_of(&mut stream, &job.document).await?;
+    Ok((request, device, job, label, document))
+}
+
+#[tokio::test]
+async fn a_gateway_print_is_signed_whole_its_document_follows_and_it_is_answered_with_its_attempt() -> Outcome {
     let print = label_print();
-    let request = signed_request(|body| print.add_to(body))?;
+    let asked = RequestId::new();
+    let stream = sent(&gateway_print(&print, &asked)?, Some(print.document)).await?;
+    let (request, device, job, label, document) = station_takes_print(&stream).await?;
+    assert_eq!((device, job, label, document.as_slice()), (print.device, print.job, Some(print.label), print.document));
 
-    let read = carried_signed_request(&carrying(&request)?)?;
-    assert_eq!(read, request);
-    let (body, _) = opened_signed_request(&read, &Path::Registry(registry()))?;
-    print.read_back(body.components().read()?);
-
-    let sent = JobAttempt { state: AttemptState::Sent, accepted: at(NOW + 200), finished: Some(at(NOW + 450)) };
-    let answer = EnvelopeBuilder::new().add(&sent)?.encode();
-    assert_eq!(read_attempt(&answer)?, Ok((sent, None)));
+    let attempt = JobAttempt { state: AttemptState::Sent, accepted: at(NOW), finished: Some(at(NOW + 800)) };
+    let answer = Envelope::new((Response { request_id: request.request_id }, attempt.clone()))?;
+    let (response, read, failure) = received(&answer).await?.get::<(Response, JobAttempt, Option<JobFailure>)>()?;
+    assert_eq!((response.request_id, read, failure), (asked, attempt, None));
     Ok(())
 }
 
-/// The answer to a print whose attempt failed: the attempt, and how it failed, which a station
-/// gives the registry in place of a refusal, since it took the job.
-#[test]
-fn a_print_whose_attempt_failed_is_answered_with_the_attempt_and_its_failure() -> Outcome {
-    let failed = JobAttempt { state: AttemptState::Failed, accepted: at(NOW + 200), finished: Some(at(NOW + 1_200)) };
-    let failure = JobFailure { code: JobFailure::DEVICE_FAILED.into(), message: "out of labels".into() };
-    let answer = EnvelopeBuilder::new().add(&failed)?.add(&failure)?.encode();
-    assert_eq!(read_attempt(&answer)?, Ok((failed, Some(failure))));
+// A failed attempt is no refusal: the station took the job, and the failure is its outcome.
+#[tokio::test]
+async fn a_print_whose_attempt_failed_is_answered_with_the_attempt_and_its_failure() -> Outcome {
+    let asked = RequestId::new();
+    let attempt = JobAttempt { state: AttemptState::Failed, accepted: at(NOW), finished: Some(at(NOW + 30_000)) };
+    let failure = JobFailure { code: JobFailure::DEVICE_TIMEOUT.into(), message: "the printer did not answer".into() };
+    let answer = Envelope::new((Response { request_id: asked.clone() }, attempt.clone(), failure.clone()))?;
+    let (response, read, failed) = received(&answer).await?.get::<(Response, JobAttempt, Option<JobFailure>)>()?;
+    assert_eq!((response.request_id, read, failed), (asked, attempt, Some(failure)));
     Ok(())
 }
 
-/// An answer to a print whose attempt and failure disagree does not read: a failed attempt without
-/// how it failed, and an attempt that was sent, or that has no outcome yet, with a failure.
-#[test]
-fn an_answer_to_a_print_whose_attempt_and_failure_disagree_does_not_read() -> Outcome {
-    let attempt = |state, finished| JobAttempt { state, accepted: at(NOW + 200), finished };
-    let failure = JobFailure { code: JobFailure::DEVICE_FAILED.into(), message: "out of labels".into() };
-    let failed_without_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Failed, Some(at(NOW + 1_200))))?.encode();
-    let sent_with_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Sent, Some(at(NOW + 450))))?.add(&failure)?.encode();
-    let accepted_with_a_failure = EnvelopeBuilder::new().add(&attempt(AttemptState::Accepted, None))?.add(&failure)?.encode();
-    for disagreeing in [failed_without_a_failure, sent_with_a_failure, accepted_with_a_failure] {
-        let not_read = read_attempt(&disagreeing).err().map(|error| error.to_string());
-        assert_eq!(not_read.as_deref(), Some("a failure comes beside a failed attempt, and beside no other"));
-    }
+// The signature covers the document through its hash and its length, so the station prints
+// nothing but the bytes the application named.
+#[tokio::test]
+async fn a_document_that_is_not_the_one_the_signed_print_names_is_refused() -> Outcome {
+    let print = label_print();
+    let request = gateway_print(&print, &RequestId::new())?;
+    let other = b"^XA^FO50,50^ADN,36,20^FDOrder 9999^FS^XZ";
+    assert_eq!(other.len(), print.document.len());
+    let refused = station_takes_print(&sent(&request, Some(other)).await?).await;
+    assert!(refused.is_err_and(|error| matches!(error.downcast_ref::<ReceiveError>(), Some(ReceiveError::WrongHash))));
+    let shorter = &print.document[..print.document.len() - 1];
+    let refused = station_takes_print(&sent(&request, Some(shorter)).await?).await;
+    assert!(refused.is_err_and(|error| matches!(error.downcast_ref::<ReceiveError>(), Some(ReceiveError::LengthMismatch { .. }))));
+    let refused = station_takes_print(&sent(&request, None).await?).await;
+    assert!(refused.is_err_and(|error| matches!(error.downcast_ref::<ReceiveError>(), Some(ReceiveError::NoAttachment))));
     Ok(())
 }
 
-/// The answer to a print the station did not take, here because the printer cannot take work now,
-/// is its refusal alone, with no attempt, since no job was recorded; the registry reads it as the
-/// refusal it passes on to the caller.
-#[test]
-fn a_print_the_station_refused_is_answered_with_the_refusal_alone() -> Outcome {
-    let refusal = Refusal { code: Refusal::DEVICE_UNAVAILABLE.into(), message: "the printer's print system refuses work".into() };
-    let answer = EnvelopeBuilder::new().add(&refusal)?.encode();
-    assert_eq!(read_attempt(&answer)?, Err(ReceivedRefusal { refusal, not_understood: None }));
+#[tokio::test]
+async fn a_gateway_weigh_is_signed_whole_and_answered_with_the_reading() -> Outcome {
+    let asked = RequestId::new();
+    let (stations, expiry) = this_station_for_five_minutes();
+    let weigh = ForDevice { device: Ref::new(scale_record()) };
+    let request =
+        signed(Envelope::new((Request { request_id: asked.clone() }, DoWeigh {}, weigh.clone(), stations, expiry))?, &application());
+    let taken = received(&request).await?;
+    let (request, _, device, stations, expiry) = taken.get::<(Request, DoWeigh, ForDevice, AtStations, Expiry)>()?;
+    let (application, station) = (key_of(&application()), station());
+    check_signed_request(&taken, &stations, &expiry, &signed_request_check(&application, &station))?;
+    assert_eq!(device, weigh);
+
+    let reading = ScaleReading { status: WeightStatus::Stable, value: WeightValue::new(1.25)?, unit: WeightUnit::Pounds };
+    let answer = Envelope::new((Response { request_id: request.request_id }, reading.clone()))?;
+    let (response, read) = received(&answer).await?.get::<(Response, ScaleReading)>()?;
+    assert_eq!((response.request_id, read), (asked, reading));
     Ok(())
 }
 
-/// A caller's weigh through a registry's gateway, which a party that holds the application's key
-/// may send a station directly in the same form.
-#[test]
-fn a_gateway_weigh_is_signed_whole_and_answered_with_the_reading() -> Outcome {
-    let device = ForDevice { device: scale_record().into() };
-    let request = signed_request(|body| {
-        body.add_must_understand(&Weigh {})?.add(&device)?;
-        Ok(())
-    })?;
-    let read = carried_signed_request(&carrying(&request)?)?;
-    let (body, _) = opened_signed_request(&read, &Path::Registry(registry()))?;
-    assert_eq!(body.components().read::<(Weigh, ForDevice)>()?.1, device);
+// A retirement proves itself by the signature of the key it retires, so whoever holds it passes it
+// on as its exact bytes, by any path, and the station answers whether or not it shares its devices
+// with the application.
+#[tokio::test]
+async fn a_retirement_is_signed_by_the_key_it_retires_passed_on_as_its_bytes_and_answered_with_the_response_alone() -> Outcome {
+    let asked = RequestId::new();
+    let retirement = Retirement { retired: at(NOW - MINUTE) };
+    let signed_retirement = signed(Envelope::new((Request { request_id: asked.clone() }, retirement.clone()))?, &application());
 
-    let reading = ScaleReading { status: WeightStatus::Stable, value: WeightValue::new(1.25)?, unit: WeightUnit::Kilograms };
-    let answer = EnvelopeBuilder::new().add(&reading)?.encode();
-    assert_eq!(decoded(&answer, REPLIES_UNDERSTOOD)?.components().read::<ScaleReading>()?, reading);
+    // The registry passes it on as it came to it.
+    let passed_on = received(&signed_retirement).await?;
+    assert_eq!(passed_on.bytes(), signed_retirement.bytes());
+    let taken = received(&passed_on).await?;
+    let (request, read) = taken.get::<(Request, Retirement)>()?;
+    assert_eq!(read, retirement);
+    assert!(taken.is_signed_by(&key_of(&application()).identity()), "the retirement retires the key that signed it");
+    assert!(!taken.is_signed_by(&key(7).identity()));
+
+    let answer = received(&Envelope::new(Response { request_id: request.request_id })?).await?;
+    assert_eq!(answer.get::<Response>()?.request_id, asked);
     Ok(())
 }
 
-/// An application's retirement, which a registry passes on down its held connection as soon as
-/// the key retires, and which proves itself by its own signature.
-#[test]
-fn a_retirement_is_passed_on_as_its_key_signed_it_and_acknowledged() -> Outcome {
-    let retirement: SignedRetirement = signed(EnvelopeBuilder::new().add_must_understand(&Retirement { retired: at(NOW) })?);
-    let request = EnvelopeBuilder::new().add_must_understand(&Retire {})?.add_must_understand(&retirement)?.encode();
-
-    let received = station_reads(&request)?;
-    let (_, read) = received.components().read::<(Retire, SignedRetirement)>()?;
-    let retired = read.open(&Limits::default(), RETIREMENT_UNDERSTANDS)?;
-    assert_eq!(retired.must_understand(), [Retirement::ID]);
-    assert_eq!(retired.components().read::<Retirement>()?, Retirement { retired: at(NOW) });
-    assert_eq!(read.signer, key_of(&application()), "the retirement retires its signer");
-    assert_done(&done())
-}
-
-/// A registry's voiding of an application's slips, which a station takes from that registry
-/// alone.
-#[test]
-fn a_voiding_of_slips_names_the_application_and_the_moment() -> Outcome {
+#[tokio::test]
+async fn a_voiding_of_slips_names_the_application_and_the_moment_and_is_answered_with_the_response_alone() -> Outcome {
+    let asked = RequestId::new();
+    let voided = SlipsVoided { before: at(NOW - MINUTE) };
     let application = ForApplication { key: key_of(&application()) };
-    let voided = SlipsVoided { before: at(NOW) };
-    let request = EnvelopeBuilder::new().add_must_understand(&VoidSlips {})?.add_must_understand(&voided)?.add(&application)?.encode();
+    let request = Envelope::new((Request { request_id: asked.clone() }, voided.clone(), application.clone()))?;
+    let (request, read, of) = received(&request).await?.get::<(Request, SlipsVoided, ForApplication)>()?;
+    assert_eq!((read, of), (voided, application));
 
-    let received = station_reads(&request)?;
-    assert_eq!(voiding(&received, &Path::Registry(registry()))?, (voided, application));
-    assert_done(&done())
+    let answer = received(&Envelope::new(Response { request_id: request.request_id })?).await?;
+    assert_eq!(answer.get::<Response>()?.request_id, asked);
+    Ok(())
 }
 
-/// What a server of Pylon 0.1.0 asks a station, a print and a weigh with no authority beside
-/// them, takes the same components, so that the new protocol loses nothing the old one says.
-#[test]
-fn pylon_0_1_0s_print_and_weigh_take_the_same_components_without_an_authority() -> Outcome {
+// A server of Pylon 0.1.0 is trusted by its connection, so its requests carry no authority.
+#[tokio::test]
+async fn pylon_0_1_0s_print_and_weigh_take_the_same_components_without_an_authority() -> Outcome {
     let print = label_print();
-    let mut request = EnvelopeBuilder::new();
-    print.add_to(&mut request)?;
-    let request = request.encode();
-    print.read_back(station_reads(&request)?.components().read()?);
+    let request = Envelope::new((Request { request_id: RequestId::new() }, DoPrint {}, print.device.clone(), print.job.clone()))?;
+    let stream = sent(&request, Some(print.document)).await?;
+    let mut stream = stream.as_slice();
+    let (_, _, device, job, label) = envelope_of(&mut stream).await?.get::<(Request, DoPrint, ForDevice, PrintJob, Option<JobLabel>)>()?;
+    assert_eq!((device, &job, label), (print.device, &print.job, None));
+    assert_eq!(attachment_of(&mut stream, &job.document).await?, print.document);
 
-    let device = ForDevice { device: scale_record().into() };
-    let request = EnvelopeBuilder::new().add_must_understand(&Weigh {})?.add(&device)?.encode();
-    assert_eq!(station_reads(&request)?.components().read::<(Weigh, ForDevice)>()?.1, device);
+    let weigh = Envelope::new((Request { request_id: RequestId::new() }, DoWeigh {}, ForDevice { device: Ref::new(scale_record()) }))?;
+    let (_, _, device) = received(&weigh).await?.get::<(Request, DoWeigh, ForDevice)>()?;
+    assert_eq!(device.device, Ref::new(scale_record()));
     Ok(())
 }

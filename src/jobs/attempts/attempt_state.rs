@@ -3,8 +3,8 @@ use crate::stored_forms::enum_stored_by_name;
 enum_stored_by_name! {
     /// Where a job's latest attempt stands. Stored as its name in snake case, such as `accepted`, so
     /// that a query reads `state = 'accepted'`. A name this build does not know does not read: a state
-    /// added later comes in a component of its own, which its sender lists as one a receiver must
-    /// understand, so that no receiver reads it as a state it knows.
+    /// added later comes in a component of its own, which a receiver must understand, so that no
+    /// receiver reads it as a state it knows.
     pub enum AttemptState {
         /// Recorded, with no outcome yet: the job may be with the device. A job is recorded so before
         /// anything is handed over, and a station that starts and finds a job in this state does not

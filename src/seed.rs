@@ -51,9 +51,6 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "authority/applications/for_application.akev",
     "authority/applications/hosting.akev",
     "authority/applications/invitation_claim.akev",
-    "authority/requests/claim_invitation.akev",
-    "authority/requests/retire.akev",
-    "authority/requests/void_slips.akev",
     "authority/restrictions/allows_requests.akev",
     "authority/restrictions/at_devices.akev",
     "authority/restrictions/at_stations.akev",
@@ -62,42 +59,42 @@ const KEPT_MINT: &[(&str, &str)] = kept![
     "authority/revocation/slips_voided.akev",
     "authority/slips/party.akev",
     "authority/slips/permission_slip.akev",
+    "catalog/catalog.akev",
+    "catalog/operations/do_list_catalog.akev",
     "catalog/printer_fingerprint.akev",
-    "catalog/requests/get_catalog.akev",
     "devices/device.akev",
+    "devices/device_listing.akev",
+    "devices/operations/do_list_devices.akev",
     "devices/printers/media.akev",
     "devices/printers/printer.akev",
-    "devices/requests/list_devices.akev",
     "devices/scales/scale.akev",
     "devices/scales/scale_reading.akev",
     "devices/station.akev",
     "jobs/attempts/job_attempt.akev",
     "jobs/attempts/job_failure.akev",
     "jobs/for_device.akev",
-    "jobs/job_id.akev",
     "jobs/job_label.akev",
-    "jobs/printing/document_follows.akev",
+    "jobs/operations/do_print.akev",
+    "jobs/operations/do_weigh.akev",
     "jobs/printing/print_job.akev",
-    "jobs/requests/print.akev",
-    "jobs/requests/weigh.akev",
     "nodes/events.akev",
     "nodes/node_link.akev",
-    "nodes/requests/push_events.akev",
+    "nodes/operations/do_import_events.akev",
     "registry/for_grant.akev",
     "registry/id_token_sign_in.akev",
+    "registry/kept_registrations.akev",
     "registry/node_grant.akev",
+    "registry/operations/do_end_registration.akev",
+    "registry/operations/do_list_registrations.akev",
+    "registry/operations/do_register.akev",
     "registry/registration.akev",
-    "registry/requests/hello.akev",
-    "registry/requests/register.akev",
-    "registry/requests/sign_in.akev",
-    "registry/requests/stop_sharing.akev",
     "registry/scopes/first_scope.akev",
     "registry/scopes/placement.akev",
     "registry/scopes/registrable.akev",
     "registry/scopes/scope.akev",
     "registry/scopes/scope_assignment.akev",
+    "registry/scopes/scope_choices.akev",
     "registry/signed_in_person.akev",
-    "replies/done.akev",
     "replies/not_understood.akev",
     "replies/refusal.akev",
 ];
@@ -123,6 +120,7 @@ mod tests {
     use ankurah::{
         core::schema::registration::RegistrationError,
         entity::LocalTrxEntity,
+        envelope::ContentRef,
         model::{ComponentViews, Mutable},
         policy::DEFAULT_CONTEXT,
         property::Ref,
@@ -271,12 +269,12 @@ mod tests {
         let node = seeded(engine).await;
         let context = node.context_async(DEFAULT_CONTEXT).await.unwrap();
         let device = ForDevice { device: Ref::new(EntityId::from_bytes([11; 32])) };
-        let job = JobId { job: "order-1001-label".to_owned() };
         let label = JobLabel { name: "Order 1001".to_owned(), asked_by: None };
         let print = PrintJob {
+            job_id: "order-1001-label".to_owned(),
             document_format: MimeType::new("application/x-zpl2").unwrap(),
             copies: Copies::new(2).unwrap(),
-            document_hash: DocumentHash::of(b"^XA^FDOrder 1001^FS^XZ"),
+            document: ContentRef::to(b"^XA^FDOrder 1001^FS^XZ"),
         };
         let attempt = JobAttempt {
             state: AttemptState::Failed,
@@ -286,18 +284,17 @@ mod tests {
         let failure = JobFailure { code: JobFailure::DEVICE_TIMEOUT.to_owned(), message: "the printer did not answer".to_owned() };
         let transaction = context.begin();
         let created = transaction.create(&device).await.unwrap();
-        stage(&context, created.entity(), &job).await;
         stage(&context, created.entity(), &label).await;
         stage(&context, created.entity(), &print).await;
         stage(&context, created.entity(), &attempt).await;
         stage(&context, created.entity(), &failure).await;
         transaction.commit().await.unwrap();
 
-        let (device_view, job_view, label_view, print_view, attempt_view, failure_view) =
-            fetched::<(ForDeviceView, JobIdView, JobLabelView, PrintJobView, JobAttemptView, JobFailureView)>(&context).await;
+        let (device_view, label_view, print_view, attempt_view, failure_view) =
+            fetched::<(ForDeviceView, JobLabelView, PrintJobView, JobAttemptView, JobFailureView)>(&context).await;
         assert_eq!(
-            (read(&device_view), read(&job_view), read(&label_view), read(&print_view), read(&attempt_view), read(&failure_view)),
-            (device, job, label, print, attempt, failure)
+            (read(&device_view), read(&label_view), read(&print_view), read(&attempt_view), read(&failure_view)),
+            (device, label, print, attempt, failure)
         );
     }
 

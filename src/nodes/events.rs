@@ -1,29 +1,29 @@
 use ankurah::{
+    envelope::EnvelopeComponent,
     proto::{Attested, Event},
     Model,
 };
 use bincode::Options;
 
-use crate::codec::Minted;
-
 /// The events of the sender's own records, parents before children, as Ankurah encodes them, so
 /// that the receiver imports them unchanged: an event's id is the hash of what it holds, so only
 /// the sender's own events give the receiver its records under the ids the sender gave them, with
-/// the same history. A push of events carries it; the receiver imports the events, and keeps no
+/// the same history. A `DoImportEvents` carries it; the receiver imports the events, and keeps no
 /// record of this component.
 ///
 /// The events are encoded together, as one list, by bincode 1 in the form its `serialize` gives,
-/// as Ankurah's own messages encode them: integers of fixed width, little-endian. The codec never
-/// reads inside them, so the two ends of a push build against the same revision of Ankurah. A
+/// as Ankurah's own messages encode them: integers of fixed width, little-endian. The envelope
+/// never reads inside them, so the two ends of a push build against the same revision of Ankurah. A
 /// list followed by any byte more does not read, so that the bytes a receiver imports are all the
 /// sender gave.
-#[derive(Model, Minted, Debug, Clone, PartialEq)]
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq)]
 #[model(label = "nodes.events")]
 #[model(id = "aoHfYIvYtO1Q8Dl82g4dzSeu7pmFL5uwx0s40VaVmhc")]
 #[model(no_ffi)]
 pub struct Events {
     /// The events, in their encoding: [`Events::new`] makes it, and [`Events::read`] reads it.
     #[property(id = "Aj9eYwuz5OvLpRJpOdYZmt0l7c0in-BiVYTaQuQEg04")]
+    #[envelope(number = 0)]
     pub events: Vec<u8>,
 }
 

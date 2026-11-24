@@ -1,0 +1,23 @@
+[TGzFu8EhZGv6pU4LQGfw5cxmcsxxX51qx2fU5qAqZvg]
+nonce: 7bMoHQBt3ZjADd0m7OPHXMwtzDReqUqshH2Xanj7-C4, timestamp: 2026-11-24T19:19:35.729Z
+lww: { label: "registry.kept_registrations", name: "KeptRegistrations" }, member: system:model
+
+[6xnEjI-8qGCTv007XZkp2-T0eIR5cCV-7gN6AT3MUVg]
+nonce: AEg7Zs5zB8_dQShb2CSdlt_49drbRm9hHMpoeNGxlnk, timestamp: 2026-11-24T19:19:35.729Z
+lww: {
+    name: "registrations"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $registry.kept_registrations
+    target_model: none
+}
+member: system:property
+
+[CWMfIzHq0t8G_lV8jUoL2X99nu5vTTZp02zRLm6JhFs]
+nonce: tGDtJER03fW_tdajYPF4cKT3Eii2Vvl8T3IO8Zpx6EE, timestamp: 2026-11-24T19:19:35.729Z
+lww: {
+    model: $registry.kept_registrations
+    property: $registrations
+    optional: false
+}
+member: system:model-property

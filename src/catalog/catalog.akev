@@ -1,0 +1,23 @@
+[mIYmHLiouWyCF0-Vf5hodBz8EiRfi6zwjx4n-wejljs]
+nonce: jgjSsiB8NRzVb9q2G43iC6yKuWHVFDzp4GPb6IuX5wA, timestamp: 2026-11-24T19:19:35.722Z
+lww: { label: "catalog.catalog", name: "Catalog" }, member: system:model
+
+[n_MIrQ-5GbF1ZBSUiM2m37-BMwmo8K1eUUPC0gLj2xI]
+nonce: 3z76q1bymYVVuCmGj3qVoLXhcFq7VccVE83ONyiaS20, timestamp: 2026-11-24T19:19:35.722Z
+lww: {
+    name: "entries"
+    backend: "lww"
+    value_type: "binary"
+    minted_for: $catalog.catalog
+    target_model: none
+}
+member: system:property
+
+[NhYXMFThtJnqP799kxbrwI2REVtwkwiVq509ReOiHr4]
+nonce: gGBhGYZQyrtpKWrAxB-c1ZsT-q9hMP1VIkexJSawVo4, timestamp: 2026-11-24T19:19:35.722Z
+lww: {
+    model: $catalog.catalog
+    property: $entries
+    optional: false
+}
+member: system:model-property

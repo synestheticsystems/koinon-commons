@@ -1,7 +1,7 @@
-use ankurah::Model;
+use ankurah::{envelope::EnvelopeComponent, Model};
 use serde::{Deserialize, Serialize};
 
-use crate::{codec::Minted, mime_type::MimeTypes};
+use crate::mime_type::MimeTypes;
 
 /// How a registry recognises a kind of printer, and what it knows of it: that a printer whose
 /// driver is named like this takes documents of these formats as it stands, sent to it
@@ -19,13 +19,13 @@ use crate::{codec::Minted, mime_type::MimeTypes};
 ///
 /// The records stand in an order, the first whose text the driver's name contains deciding, as
 /// [`names_driver`] compares them: on a registry, the order of the Ankurah Commons'
-/// `FractionalPosition`, on the same entity, and in the answer to a request for the catalog, the
-/// order of the answer's records. So a record for a model's longer name stands before one for its
-/// shorter name, which the longer contains, as "LP 2844-Z" contains "LP 2844".
+/// `FractionalPosition`, on the same entity, and in a `Catalog`, the order of its rows. So a record
+/// for a model's longer name stands before one for its shorter name, which the longer contains, as
+/// "LP 2844-Z" contains "LP 2844".
 ///
 /// Who added it is the Ankurah Commons' `Created`, and its withdrawal `Closed`, on the same
 /// entity. A record the registry started with was added by no one and carries no `Created`.
-#[derive(Model, Minted, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Model, EnvelopeComponent, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[model(label = "catalog.printer_fingerprint")]
 #[model(id = "HER0P_9s7PPq1hpuHBxuqG1HZuvxqoEn56XdVpv9lu0")]
 #[model(no_ffi)]
@@ -33,10 +33,12 @@ pub struct PrinterFingerprint {
     /// What the driver's name contains, such as "LP 2844" or "ZPL".
     #[active_type(LWW)]
     #[property(id = "DvWs3dTp3d55NySSJQcnYF0odq--KY_i-h6Tv44f6a0")]
+    #[envelope(number = 0)]
     pub driver: String,
     /// The formats, as MIME types, in the order a registry prefers them.
     #[active_type(LWW)]
     #[property(id = "GSn2A9b_IVN5BHjydBW9B8Sgkx0N-Nd2S6-7sje0cFg")]
+    #[envelope(number = 1)]
     pub document_formats: MimeTypes,
 }
 

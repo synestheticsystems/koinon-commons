@@ -5,7 +5,7 @@ nodes, mean the same thing by "a device" or "a station". A layer on the
 [Ankurah Commons](https://github.com/ankurah/commons), in its shape.
 
 **Status: draft, with a mint kept, and no id final.** The definitions of every model in the
-seven namespaces, 56 models with 77 properties and their links, are minted, unsigned, in the
+seven namespaces, 49 models with 68 properties and their links, are minted, unsigned, in the
 `.akev` files beside the structs, in the format of the Ankurah revision this crate builds
 against.
 
@@ -27,30 +27,28 @@ model's file the `.akev` file of its minted definitions:
                          events of its own records it hands them
     src/registry/        a registry's scopes, grants and registrations, and how a station
                          signs a person in there and registers for an application
-    src/replies/         what any reply may say of its request: done, refused, or not
+    src/replies/         what any response may say of its request: refused, or not
                          understood
-    src/codec/           envelopes, in which nodes send each other these components keyed by
-                         their minted ids; it holds no models of its own
     src/mime_type.rs     MIME types, by which a document names its format and a printer the
                          formats it takes
     src/public_key.rs    the keys by which components name stations, parties and applications
     src/name.rs          the names people give what they make, which are never blank
-    src/component_ids.rs lists by which one component names others, by their minted ids
+    src/component_ids.rs lists by which one component names others, by the entity ids of
+                         their definitions
     src/stored_forms/    the forms in which several property types store and carry values
     src/namespaces.rs    the namespaces and their models
     src/seed.rs          seeding a node with the kept mint, which it compiles in
-    derive/              `#[derive(Minted)]`, by which a model's struct travels in an
-                         envelope under the ids it declares
     mint/                the tool that mints the definitions and checks a mint, for this
                          crate and for any other crate of Koinon models
 
 The Rust declarations are the source: each `#[derive(Model)]` struct states a model, its
 properties, how each is stored and which are optional, and names the ids the kept mint gives
 the model and each of its properties. Every model is marked `no_ffi`, as the Ankurah Commons'
-are. The models of `devices` and `nodes`, and those that came from Pylon's own model,
-`PrintJob`, `PrinterFingerprint`, `NodeGrant` and the scopes', also derive serde, in the JSON
-form Pylon's code reads them in; the other components derive none, since a component's form in
-a message is the codec's.
+are, and derives `EnvelopeComponent`, so that it travels in Ankurah's envelope (see Messages).
+The models of `devices` and `nodes`, and those that came from Pylon's own model,
+`PrinterFingerprint`, `NodeGrant` and the scopes', also derive serde, in the JSON form Pylon's
+code reads them in; the other components derive none, since a component's form in a message is
+the envelope's.
 
 A comment that starts with `OPEN:` marks a question still to settle. Settling one that changes
 a model changes its definitions, which then need minting again.
@@ -70,8 +68,8 @@ A model is an Ankurah component, and one entity may carry several:
     assignment
     a grant      NodeGrant, with ForApplication for the application it is for, later
                  Closed when revoked or signed out
-    a print a    ForDevice + JobId + PrintJob + JobAttempt, with JobLabel when it came
-    station took with one, and JobFailure while its latest attempt has failed
+    a print a    ForDevice + PrintJob + JobAttempt, with JobLabel when it came with one,
+    station took and JobFailure while its latest attempt has failed
     a party      Party + ForApplication, on the records of a station that took jobs from
                  it under the application's slips, later Closed when blocked
 
@@ -92,46 +90,62 @@ type.
 
 ## Messages
 
-Every message of koinon/pylon/2 and of the direct path is a set of these components, in an
-envelope of `codec`; koinon/pylon/1 stays as it is, in JSON, for the stations of Pylon 0.1.0. A
-component means the same in a message as on an entity, so that every sender of one meaning
-sends the one component that means it, and a record can keep a component as a message carried
-it. Components are filed by what they mean, never by whether they travel.
+Every message of koinon/pylon/2 and of the direct path is one of Ankurah's envelopes
+(`ankurah::envelope`), with at most one attachment after it on its stream; koinon/pylon/1 stays
+as it is, in JSON, for the stations of Pylon 0.1.0. An envelope holds components, each under its
+model's minted id, and each property under the number its struct declares,
+`#[envelope(number = N)]`: numbered by hand from 0, never changed, and never given to another
+property of its component, even once one is retired. A receiver reads the components it
+understands by the tuple it names, as a fetch reads an entity, and passes over the rest. A
+component means the same in a message as on an entity, so that every sender of one meaning sends
+the one component that means it, and a record can keep a component as a message carried it.
+Components are filed by what they mean, never by whether they travel.
 
-- A request is an envelope that carries one request component, which has no properties: it
-  says what is asked, and the facts it acts on travel beside it. One that carries two is
-  refused as `bad_request`. A namespace's `requests` module holds the requests that act on its
-  records, such as `jobs::requests::Print`, and each request's documentation is its contract:
-  what it requires and takes, what answers it, and what refuses it.
-- A reply comes back on its request's stream. It is a refusal when it carries `Refusal`, with
-  `NotUnderstood` when the receiver did not understand a component it had to; otherwise it is
-  the answer, the components its request names, or `Done`.
-- A list of things that each carry several components travels as the envelope's records, such
-  as a station's devices, a registry's catalog, or the registrations it keeps for a station.
-- A sender lists as one a receiver must understand every component whose loss would change what
-  the receiver does or how it reads the stream: each request component; a slip's body and its
-  party, a retirement or a hosting; each restriction an older receiver must not drop, such as
-  an `Expiry`; a print's `DocumentFollows`, which
-  changes how the stream is read; a voiding of slips; a registration's application and its
-  `Registration`; and the `ForGrant` of a notice that ends one. A restriction added later is a
-  component of its own, listed so, and never a new property of an old one, which an older
-  receiver would ignore.
-- A receiver understands a component only where it reads it and for what it reads it. A reader
-  of a request reads the envelope's own components and none of
-  its records, so it decodes with `ReceivedEnvelope::decode_own_components`, which refuses as
-  not understood a component listed so that a record holds. Once it knows which request it was
-  sent, it refuses as `not_understood` too a component listed so that neither that request nor
-  its authority acts on, such as a `DocumentFollows` beside a weigh, whose station reads no
-  document after it.
-
-OPEN: whether an envelope carries records at all, beyond the set of components a message is.
-Lean: yes, since a list of things that each carry several components needs them, and a record
-is the components of one entity, which a receiver could keep as they came.
+- A request holds the Ankurah Commons' `Request`, with its id, and names one operation: by an
+  empty tag in the imperative, such as `jobs::operations::DoPrint`, or by the one component that
+  is only ever that operation's, such as `authority::InvitationClaim`. A namespace's `operations`
+  module holds the tags of the operations that act on its records. The documentation of each tag,
+  or of the component that names an operation, is its contract: what it requires and takes, what
+  answers it, and what refuses it.
+- A response holds the Ankurah Commons' `Response`, which names the request it answers. It is a
+  refusal when it holds `Refusal`, with `NotUnderstood` when the receiver did not understand a
+  component it must; otherwise it is the answer, the components its request names, or `Response`
+  alone.
+- Many entities in one answer, such as a station's devices, a registry's catalog or the
+  registrations it keeps for a station, travel as rows, the value of one property of a component
+  named for what it holds: `DeviceListing`, `Catalog`, `ScopeChoices` and `KeptRegistrations`.
+- A print's document follows its envelope on the stream, as the message's attachment, which its
+  `PrintJob` names by hash and length, so that a station checks the print's authority before it
+  reads the document, and takes only the bytes the print names.
+- A request has its authority from an application's key, as `authority` sets out: signed whole,
+  with the application's signature in the request's own envelope, or under a permission slip,
+  which the request presents as the Ankurah Commons' `AuthToken`, whose credential is the slip's
+  signed envelope. The checks every station makes of either are functions beside them.
+- A component a receiver must understand says so on its type, `#[envelope(must_understand)]`,
+  and the flag travels with it, so that a receiver that does not know the component still sees
+  it: every operation's tag and every component that names an operation, the token, a slip's
+  body, its party and each restriction, a hosting, and whatever tells one application or one
+  registration from another. A receiver that does not understand such a component refuses the
+  request, naming it. A restriction added later is a component of its own, flagged so, and never
+  a new property of an old one, which an older receiver would ignore.
 
 ## Building against Ankurah
 
-The crate builds against the revision of Ankurah's main that the Ankurah Commons pins,
-named in `Cargo.toml`. An application that uses the crate pins the same revision.
+The crate builds against the revision of Ankurah's main that the Ankurah Commons pins, named in
+`Cargo.toml`, with Ankurah's envelope, and against the Ankurah Commons with its `requests`
+namespace. An application that uses the crate pins the same revisions.
+
+Neither is published yet: each is on a branch of its repository. Until they are, a build takes
+Ankurah and the Ankurah Commons from checkouts of those branches, by `[patch]` entries in a
+`.cargo/config.toml` that is kept out of the repository:
+
+    [patch."https://github.com/ankurah/ankurah"]
+    ankurah                = { path = "<Ankurah checkout>/ankurah" }
+    ankurah-storage-sled   = { path = "<Ankurah checkout>/storage/sled" }
+    ankurah-storage-sqlite = { path = "<Ankurah checkout>/storage/sqlite" }
+
+    [patch."https://github.com/ankurah/commons"]
+    ankurah-commons = { path = "<Ankurah Commons checkout>" }
 
 ## Publishing
 
@@ -166,15 +180,16 @@ needs the kept mint carried over, as the Ankurah Commons' mint describes.
 
 `src/namespaces.rs` lists the models `mint` mints, and a test there fails when a namespace's
 directory declares a model the list does not name. The mint's binary builds this crate, and
-`#[derive(Minted)]` refuses a struct, or a field, that does not yet declare its minted id, so a
-new model or a new property takes two passes:
+`#[derive(EnvelopeComponent)]` refuses a struct that does not yet declare its model's minted id,
+so a new model takes two passes:
 
 1. Declare the new model with `#[derive(Model)]` alone, list it in `src/namespaces.rs`, and run
-   `mint`, which writes its file beside it and its ids into it. For a property added to a model
-   that derives `Minted`, take `Minted` off the struct for this pass, and any impl that requires
-   it.
-2. Derive `Minted` on the struct, put back what the first pass took off, add a new model's file
-   to the list in `src/seed.rs`, which the seed's tests check, and run `verify`.
+   `mint`, which writes its file beside it and its ids into it.
+2. Derive `EnvelopeComponent` on the struct, give each of its properties its number, add its
+   file to the list in `src/seed.rs`, which the seed's tests check, and run `verify`.
+
+A property added to a model takes one pass: give it the next number its component has never
+given, and run `mint`.
 
 The tool mints any crate of Koinon models that lists its namespaces as the Ankurah Commons
 lists its own, as `ankurah_commons::namespaces::Namespace`, with no kinds of edge. The

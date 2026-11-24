@@ -3,7 +3,7 @@ use crate::stored_forms::enum_stored_by_name;
 enum_stored_by_name! {
     /// The unit a scale reads in, as the scale reports it. Stored as its name, such as `kilograms`. A
     /// name this build does not know does not read: a unit added later comes in a component of its
-    /// own, which its sender lists as one a receiver must understand.
+    /// own, which a receiver must understand.
     pub enum WeightUnit {
         Grams = "grams",
         Kilograms = "kilograms",

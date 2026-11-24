@@ -41,7 +41,6 @@ dependencies = [
 [[package]]
 name = "ankql"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankurah-core-types",
  "pest",
@@ -54,11 +53,11 @@ dependencies = [
 [[package]]
 name = "ankurah"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core",
  "ankurah-derive",
+ "ankurah-envelope",
  "ankurah-proto",
  "ankurah-signals",
  "serde",
@@ -69,10 +68,10 @@ dependencies = [
 [[package]]
 name = "ankurah-commons"
 version = "0.0.0"
-source = "git+https://github.com/ankurah/commons?rev=c06db8ca8e611bf8ed2051e3c28315491430f5b8#c06db8ca8e611bf8ed2051e3c28315491430f5b8"
 dependencies = [
  "ankurah",
  "base64",
+ "rand 0.9.5",
  "serde",
  "strum 0.26.3",
 ]
@@ -80,11 +79,11 @@ dependencies = [
 [[package]]
 name = "ankurah-core"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core-types",
  "ankurah-derive",
+ "ankurah-digest-tree",
  "ankurah-proto",
  "ankurah-signals",
  "anyhow",
@@ -103,6 +102,7 @@ dependencies = [
  "rand 0.8.8",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "smallvec",
  "thiserror 2.0.21",
  "tokio",
@@ -114,7 +114,6 @@ dependencies = [
 [[package]]
 name = "ankurah-core-types"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "anyhow",
  "base64",
@@ -129,7 +128,6 @@ dependencies = [
 [[package]]
 name = "ankurah-derive"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core-types",
@@ -144,9 +142,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "ankurah-digest-tree"
+version = "0.10.0"
+dependencies = [
+ "ankurah-core-types",
+ "blake3",
+ "curve25519-dalek 4.1.3",
+ "futures-core",
+ "rayon",
+ "serde",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "ankurah-envelope"
+version = "0.10.0"
+dependencies = [
+ "ankurah-core",
+ "ankurah-core-types",
+ "ankurah-derive",
+ "base64",
+ "bytes",
+ "ed25519-dalek 2.2.0",
+ "half",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "tokio",
+]
+
+[[package]]
 name = "ankurah-proto"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core-types",
@@ -168,7 +196,6 @@ dependencies = [
 [[package]]
 name = "ankurah-signals"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "reactive_graph",
  "tokio",
@@ -178,7 +205,6 @@ dependencies = [
 [[package]]
 name = "ankurah-storage-common"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core",
@@ -194,7 +220,6 @@ dependencies = [
 [[package]]
 name = "ankurah-storage-sled"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core",
@@ -217,7 +242,6 @@ dependencies = [
 [[package]]
 name = "ankurah-storage-sqlite"
 version = "0.10.0"
-source = "git+https://github.com/ankurah/ankurah?rev=c8df01cc9354a1236d36443476baf7dc65f8ddee#c8df01cc9354a1236d36443476baf7dc65f8ddee"
 dependencies = [
  "ankql",
  "ankurah-core",
@@ -366,6 +390,12 @@ name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
+name = "base64ct"
+version = "1.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "bb8"
@@ -530,6 +560,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "const-oid"
+version = "0.9.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
+
+[[package]]
 name = "constant_time_eq"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -566,6 +602,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "crossbeam-deque"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "622f3fc73690be383c7214310406f28a90e6edeadc3cea882f9d71e495b9711a"
+dependencies = [
+ "crossbeam-epoch",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -610,6 +656,22 @@ dependencies = [
 
 [[package]]
 name = "curve25519-dalek"
+version = "4.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97fb8b7c4503de7d6ae7b42ab72a5a59857b4c937ec27a3d4539dba95b5ab2be"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.2.17",
+ "curve25519-dalek-derive",
+ "digest 0.10.7",
+ "fiat-crypto 0.2.9",
+ "rustc_version",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek"
 version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5eed333089e2e1c1ac8c6c0398e5e2497b4c9926ca6d0365ed1e099afa5bc23"
@@ -618,7 +680,7 @@ dependencies = [
  "cpufeatures 0.3.1",
  "curve25519-dalek-derive",
  "digest 0.11.3",
- "fiat-crypto",
+ "fiat-crypto 0.3.0",
  "rustc_version",
  "subtle",
  "zeroize",
@@ -647,6 +709,16 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core 0.9.12",
+]
+
+[[package]]
+name = "der"
+version = "0.7.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c1832837b905bbfb5101e07cc24c8deddf52f93225eee6ead5f4d63d53ddcb"
+dependencies = [
+ "const-oid",
+ "zeroize",
 ]
 
 [[package]]
@@ -709,11 +781,35 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
+version = "2.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
+dependencies = [
+ "pkcs8",
+ "signature 2.2.0",
+]
+
+[[package]]
+name = "ed25519"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29fcf32e6c73d1079f83ab4d782de2d81620346a5f38c6237a86a22f8368980a"
 dependencies = [
- "signature",
+ "signature 3.0.0",
+]
+
+[[package]]
+name = "ed25519-dalek"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
+dependencies = [
+ "curve25519-dalek 4.1.3",
+ "ed25519 2.2.3",
+ "serde",
+ "sha2 0.10.9",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -722,8 +818,8 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
 dependencies = [
- "curve25519-dalek",
- "ed25519",
+ "curve25519-dalek 5.0.0",
+ "ed25519 3.0.0",
  "sha2 0.11.1",
  "subtle",
  "zeroize",
@@ -791,6 +887,12 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 dependencies = [
  "getrandom 0.4.3",
 ]
+
+[[package]]
+name = "fiat-crypto"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 
 [[package]]
 name = "fiat-crypto"
@@ -1263,26 +1365,14 @@ dependencies = [
  "ankurah-storage-sled",
  "ankurah-storage-sqlite",
  "bincode",
- "ed25519-dalek",
- "half",
- "koinon-commons-derive",
+ "bytes",
+ "ed25519-dalek 3.0.0",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "syn 2.0.119",
  "thiserror 2.0.21",
  "tokio",
  "url",
-]
-
-[[package]]
-name = "koinon-commons-derive"
-version = "0.0.0"
-dependencies = [
- "base64",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -1558,6 +1648,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
+name = "pkcs8"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
+dependencies = [
+ "der",
+ "spki",
+]
+
+[[package]]
 name = "pkg-config"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1684,6 +1784,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
 dependencies = [
  "getrandom 0.3.4",
+]
+
+[[package]]
+name = "rayon"
+version = "1.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb39b166781f92d482534ef4b4b1b2568f42613b53e5b6c160e24cfbfa30926d"
+dependencies = [
+ "either",
+ "rayon-core",
+]
+
+[[package]]
+name = "rayon-core"
+version = "1.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
+dependencies = [
+ "crossbeam-deque",
+ "crossbeam-utils",
 ]
 
 [[package]]
@@ -1931,6 +2051,15 @@ checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
 
 [[package]]
 name = "signature"
+version = "2.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
+dependencies = [
+ "rand_core 0.6.4",
+]
+
+[[package]]
+name = "signature"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28d567dcbaf0049cb8ac2608a76cd95ff9e4412e1899d389ee400918ca7537f5"
@@ -1980,6 +2109,16 @@ name = "smallvec"
 version = "1.16.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "149309498a5f7334b12ddae0cad8aba81ce785fe91755068867e017cf98fee46"
+
+[[package]]
+name = "spki"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
+dependencies = [
+ "base64ct",
+ "der",
+]
 
 [[package]]
 name = "stable_deref_trait"
@@ -2157,6 +2296,7 @@ version = "1.54.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
 dependencies = [
+ "bytes",
  "parking_lot 0.12.5",
  "pin-project-lite",
  "tokio-macros",

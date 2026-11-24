@@ -8,28 +8,23 @@ license.workspace = true
 publish = false
 
 [dependencies]
-ankurah               = { workspace = true }
-ankurah-commons       = { workspace = true }
-# `#[derive(Minted)]`, which `codec` re-exports beside the trait it implements.
-koinon-commons-derive = { path = "derive" }
+ankurah         = { workspace = true }
+ankurah-commons = { workspace = true }
 # The events a push hands a registry, in the encoding Ankurah's own messages give them.
-bincode               = "1"
-# The keys components name stations, parties and applications by, each checked to be a key,
-# and the signatures over carried envelopes, made and checked. The major version iroh's keys
-# use, so that a node converts between the two without a second copy of the curve.
-ed25519-dalek         = "3"
-# A float in an envelope, in the shortest width that keeps every bit of it.
-half                  = "2"
-serde                 = { version = "1", features = ["derive"] }
-# The SHA-256 by which a print names the document that follows its request. The codec's tests
-# also sign envelopes with a stand-in made of it.
-sha2                  = "0.10"
-# The JSON of a json-typed property, which an envelope carries as CBOR.
-serde_json            = "1"
-thiserror             = "2"
+bincode         = "1"
+# A permission slip's bytes, as the envelope that a request's token carries is decoded from them.
+bytes           = "1"
+# The keys components name stations, parties and applications by, each checked to be a key. The
+# major version iroh's keys use, so that a node converts between the two without a second copy of
+# the curve. Its tests also sign envelopes with keys of it.
+ed25519-dalek   = "3"
+serde           = { version = "1", features = ["derive"] }
+# The JSON arrays in which lists of keys, devices and components are stored.
+serde_json      = "1"
+thiserror       = "2"
 # The host parser of an HTTPS address, by which an application's address is written in one form,
 # whether a registry signs it or a station's person types it.
-url                   = "2"
+url             = "2"
 
 [dev-dependencies]
 # Durable nodes to seed, on the two storage engines the Ankurah Commons' tests use.
@@ -37,25 +32,30 @@ ankurah-storage-sled   = { workspace = true }
 ankurah-storage-sqlite = { workspace = true }
 # The guard on the list of models reads the namespaces' sources.
 syn                    = { workspace = true }
-tokio                  = { version = "1", features = ["macros", "rt"] }
+# The messages' tests send each message through a stream in memory.
+tokio                  = { version = "1", features = ["io-util", "macros", "rt"] }
 
 [workspace]
 resolver = "2"
-members  = ["derive", "mint"]
+members  = ["mint"]
 
 [workspace.package]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-# The revision of Ankurah's main that the Ankurah Commons pins. An application that uses
-# this crate pins the same revision: crates from two revisions would not share Ankurah's
-# types.
-ankurah                = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee", features = ["derive"] }
+# The revision of Ankurah's main that the Ankurah Commons pins, with the envelope, in which these
+# components travel. An application that uses this crate pins the same revision: crates from two
+# revisions would not share Ankurah's types. The envelope is not published yet: until it is, a
+# build patches Ankurah to a checkout of the branch that holds it (README, Building against
+# Ankurah).
+ankurah                = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee", features = ["derive", "envelope"] }
 ankurah-storage-sled   = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee" }
 ankurah-storage-sqlite = { git = "https://github.com/ankurah/ankurah", rev = "c8df01cc9354a1236d36443476baf7dc65f8ddee" }
 # The revision of the Ankurah Commons that holds `Dimension`, from its branch
 # `property-dimension` (ankurah/commons pull request 1). With `records`, because the entities
-# of these models also carry its `Closed`.
-ankurah-commons        = { git = "https://github.com/ankurah/commons", rev = "c06db8ca8e611bf8ed2051e3c28315491430f5b8", features = ["records"] }
+# of these models also carry its `Closed`, and `requests`, whose `Request`, `Response` and
+# `AuthToken` the messages carry, which a build takes from a checkout of the branch that holds
+# them until they are published (README, Building against Ankurah).
+ankurah-commons        = { git = "https://github.com/ankurah/commons", rev = "c06db8ca8e611bf8ed2051e3c28315491430f5b8", features = ["records", "requests"] }
 syn                    = { version = "2", features = ["full"] }

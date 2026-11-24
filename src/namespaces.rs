@@ -29,27 +29,25 @@ pub const NAMESPACES: &[Namespace] = &[
             authority::SlipsVoided::descriptor,
             authority::Party::descriptor,
             authority::PermissionSlip::descriptor,
-            authority::requests::ClaimInvitation::descriptor,
-            authority::requests::Retire::descriptor,
-            authority::requests::VoidSlips::descriptor,
         ],
         edge_kinds: None,
     },
     Namespace {
         name: "catalog",
-        models: &[catalog::PrinterFingerprint::descriptor, catalog::requests::GetCatalog::descriptor],
+        models: &[catalog::Catalog::descriptor, catalog::PrinterFingerprint::descriptor, catalog::operations::DoListCatalog::descriptor],
         edge_kinds: None,
     },
     Namespace {
         name: "devices",
         models: &[
             devices::Device::descriptor,
+            devices::DeviceListing::descriptor,
             devices::Media::descriptor,
             devices::Printer::descriptor,
             devices::Scale::descriptor,
             devices::ScaleReading::descriptor,
             devices::Station::descriptor,
-            devices::requests::ListDevices::descriptor,
+            devices::operations::DoListDevices::descriptor,
         ],
         edge_kinds: None,
     },
@@ -59,18 +57,16 @@ pub const NAMESPACES: &[Namespace] = &[
             jobs::JobAttempt::descriptor,
             jobs::JobFailure::descriptor,
             jobs::ForDevice::descriptor,
-            jobs::JobId::descriptor,
             jobs::JobLabel::descriptor,
-            jobs::DocumentFollows::descriptor,
             jobs::PrintJob::descriptor,
-            jobs::requests::Print::descriptor,
-            jobs::requests::Weigh::descriptor,
+            jobs::operations::DoPrint::descriptor,
+            jobs::operations::DoWeigh::descriptor,
         ],
         edge_kinds: None,
     },
     Namespace {
         name: "nodes",
-        models: &[nodes::Events::descriptor, nodes::NodeLink::descriptor, nodes::requests::PushEvents::descriptor],
+        models: &[nodes::Events::descriptor, nodes::NodeLink::descriptor, nodes::operations::DoImportEvents::descriptor],
         edge_kinds: None,
     },
     Namespace {
@@ -78,6 +74,7 @@ pub const NAMESPACES: &[Namespace] = &[
         models: &[
             registry::ForGrant::descriptor,
             registry::IdTokenSignIn::descriptor,
+            registry::KeptRegistrations::descriptor,
             registry::NodeGrant::descriptor,
             registry::Registration::descriptor,
             registry::FirstScope::descriptor,
@@ -85,24 +82,20 @@ pub const NAMESPACES: &[Namespace] = &[
             registry::Registrable::descriptor,
             registry::Scope::descriptor,
             registry::ScopeAssignment::descriptor,
+            registry::ScopeChoices::descriptor,
             registry::SignedInPerson::descriptor,
-            registry::requests::Hello::descriptor,
-            registry::requests::Register::descriptor,
-            registry::requests::SignIn::descriptor,
-            registry::requests::StopSharing::descriptor,
+            registry::operations::DoEndRegistration::descriptor,
+            registry::operations::DoListRegistrations::descriptor,
+            registry::operations::DoRegister::descriptor,
         ],
         edge_kinds: None,
     },
-    Namespace {
-        name: "replies",
-        models: &[replies::Done::descriptor, replies::NotUnderstood::descriptor, replies::Refusal::descriptor],
-        edge_kinds: None,
-    },
+    Namespace { name: "replies", models: &[replies::NotUnderstood::descriptor, replies::Refusal::descriptor], edge_kinds: None },
 ];
 
 /// The guard that keeps `NAMESPACES` complete, so that a model added to a namespace, or a new
-/// namespace, cannot be forgotten in the list, and that keeps every model one that can travel in
-/// an envelope as well as be stored. It relies on one convention: a model is a struct with
+/// namespace, cannot be forgotten in the list, and that keeps every model a component of the
+/// envelope as well as one that is stored. It relies on one convention: a model is a struct with
 /// `#[derive(Model, ..)]` written directly on it, in a file under its namespace's directory in
 /// `src/`. A model declared any other way is not seen, and neither is one in a file named
 /// `tests.rs`, where a test declares models of its own that belong to no namespace.
@@ -120,8 +113,8 @@ mod tests {
     type Models = BTreeMap<String, BTreeSet<String>>;
 
     /// Each model the sources under `src` declare, by the directory of `src` it is declared under,
-    /// with whether its struct derives `Minted` too. A directory that declares no model is no
-    /// namespace.
+    /// with whether its struct derives `EnvelopeComponent` too. A directory that declares no model
+    /// is no namespace.
     fn declared(src: &Path) -> BTreeMap<String, BTreeMap<String, bool>> {
         let mut declared = BTreeMap::new();
         for entry in fs::read_dir(src).unwrap() {
@@ -142,7 +135,7 @@ mod tests {
     }
 
     /// Adds to `models` every struct that a Rust file under `dir`, other than a test's, derives
-    /// `Model` for, with whether it derives `Minted` too.
+    /// `Model` for, with whether it derives `EnvelopeComponent` too.
     fn collect(dir: &Path, models: &mut BTreeMap<String, bool>) {
         for entry in fs::read_dir(dir).unwrap() {
             let path = entry.unwrap().path();
@@ -153,7 +146,7 @@ mod tests {
                 for item in file.items {
                     if let syn::Item::Struct(item) = item {
                         if derives(&item.attrs, "Model") {
-                            models.insert(item.ident.to_string(), derives(&item.attrs, "Minted"));
+                            models.insert(item.ident.to_string(), derives(&item.attrs, "EnvelopeComponent"));
                         }
                     }
                 }
@@ -185,11 +178,10 @@ mod tests {
         assert_eq!(labels.len(), listed.len(), "a label is listed twice");
     }
 
-    // So that no model is marked as one that is stored and not sent.
+    // So that no model is one that is stored and not sent.
     #[test]
-    fn every_model_the_namespaces_declare_derives_minted() {
-        let unminted: Vec<String> =
-            declared(&sources()).into_values().flatten().filter(|&(_, minted)| !minted).map(|(model, _)| model).collect();
-        assert!(unminted.is_empty(), "{unminted:?} derive Model and not Minted");
+    fn every_model_the_namespaces_declare_derives_envelope_component() {
+        let unsent: Vec<String> = declared(&sources()).into_values().flatten().filter(|&(_, sent)| !sent).map(|(model, _)| model).collect();
+        assert!(unsent.is_empty(), "{unsent:?} derive Model and not EnvelopeComponent");
     }
 }
